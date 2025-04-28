@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/net v0.23.0 // indirect
