@@ -23,13 +23,14 @@ func main() {
 	if tempDirErr != nil {
 		log.Fatalf("couldn't create temp directory: %v", tempDirErr)
 	}
+
 	config := extract.SpotifyConfig{
 		ClientID:     spotifyID,
 		ClientSecret: spotifySecret,
 		TempDir:      tempDir,
 	}
 	extractor := extract.NewExtractor(config)
-	extractErr := extractor.ExtractMetaDataSpotdl(playlistID)
+	extractErr := extractor.ExtractMetaDataSpotdl(smallerPlaylistID)
 	if extractErr != nil {
 		log.Fatalf("Failed to extract: %v", extractErr)
 	}
