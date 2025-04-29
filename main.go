@@ -4,16 +4,20 @@ import (
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/rjfeeney/setlist_builder/auth"
 	"github.com/rjfeeney/setlist_builder/extract"
 )
 
-const smallerPlaylistID = "3JPtU0z2f88brTdApti5Zp"
-const playlistID = "17ASQnxVm4IRehbIkP8Xl0"
-
 func main() {
+	loadErr := godotenv.Load()
+	if loadErr != nil {
+		log.Fatalf("Error loading .env file: %v", loadErr)
+	}
 	spotifyID := os.Getenv("SPOTIFY_ID")
 	spotifySecret := os.Getenv("SPOTIFY_SECRET")
+	_ = os.Getenv("REAL_PLAYLIST_ID")
+	smallerPlaylistID := os.Getenv("SMALLER_PLAYLIST_ID")
 
 	_, clientErr := auth.GetSpotifyClient(spotifyID, spotifySecret)
 	if clientErr != nil {
@@ -28,9 +32,10 @@ func main() {
 		ClientID:     spotifyID,
 		ClientSecret: spotifySecret,
 		TempDir:      tempDir,
+		PlaylistID:   smallerPlaylistID,
 	}
 	extractor := extract.NewExtractor(config)
-	extractErr := extractor.ExtractMetaDataSpotdl(smallerPlaylistID)
+	extractErr := extractor.ExtractMetaDataSpotdl()
 	if extractErr != nil {
 		log.Fatalf("Failed to extract: %v", extractErr)
 	}

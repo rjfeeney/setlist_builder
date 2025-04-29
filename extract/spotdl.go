@@ -17,6 +17,7 @@ type SpotifyConfig struct {
 	ClientID     string
 	ClientSecret string
 	TempDir      string
+	PlaylistID   string
 }
 
 type Extractor struct {
@@ -27,9 +28,9 @@ func NewExtractor(config SpotifyConfig) *Extractor {
 	return &Extractor{Config: config}
 }
 
-func (e *Extractor) ExtractMetaDataSpotdl(playlistID string) error {
+func (e *Extractor) ExtractMetaDataSpotdl() error {
 	saveFilePath := filepath.Join(e.Config.TempDir, "playlistData.spotdl")
-	playlistURL := fmt.Sprintf("https://open.spotify.com/playlist/%s", playlistID)
+	playlistURL := fmt.Sprintf("https://open.spotify.com/playlist/%s", e.Config.PlaylistID)
 
 	expBackoff := backoff.NewExponentialBackOff()
 	expBackoff.InitialInterval = 2 * time.Second
