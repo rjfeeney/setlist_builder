@@ -43,7 +43,7 @@ func main() {
 	switch command {
 	case "extract":
 		if len(args) < 1 {
-			log.Fatal("Usage: go run main.go extract <spotify_playlist_url>")
+			log.Fatal("Usage: go run main.go extract <spotify_playlist_url>\nPlease input a Spotify playlist URL")
 		}
 		if !strings.Contains(args[0], "open.spotify.com/playlist") {
 			log.Fatalf("Invalid playlist URL, please input a Spotify playlist URL")
@@ -54,6 +54,9 @@ func main() {
 		}
 
 	case "reset":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for reset, command will execute regardless")
+		}
 		err := cli.RunReset(db)
 		if err != nil {
 			log.Fatalf("reset failed: %v", err)
