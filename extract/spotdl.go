@@ -129,14 +129,13 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 				err := e.DownloadAudioSpotdl(track.Artist, track.Name)
 				if err != nil {
 					errorsChan <- fmt.Errorf("failed to download %s - %s: %v", track.Artist, track.Name, err)
-					os.RemoveAll(e.Config.TempDir)
 				}
 				mp3Folder := track.Artist + " " + track.Name + ".mp3"
 				mp3File := track.Artist + " - " + track.Name + ".mp3"
 				outputPath := filepath.Join(e.Config.TempDir, "audio", mp3Folder, mp3File)
 				key, bpm, essentiaErr := ExtractTempoAndKey(outputPath)
 				if essentiaErr != nil {
-					fmt.Printf("failed to get key/bpm for %s - %s: %v", track.Artist, track.Name, essentiaErr)
+					fmt.Printf("failed to get key/bpm for %s - %s: %v\n", track.Artist, track.Name, essentiaErr)
 				}
 				trackParams := database.CreateTrackParams{
 					Name:              track.Name,
@@ -154,10 +153,10 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 						Name:   track.Name,
 						Artist: track.Artist,
 					}
-					fmt.Printf("error saving track to database, deleting track info...: %v", createErr)
+					fmt.Printf("error saving track to database, deleting track info...: %v\n", createErr)
 					deleteErr := e.Config.DB.DeleteTrack(context.Background(), deleteparams)
 					if deleteErr != nil {
-						fmt.Printf("unable to delete track from database: %v", deleteErr)
+						fmt.Printf("unable to delete track from database: %v\n", deleteErr)
 					}
 				}
 			}(track)

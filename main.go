@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -43,6 +44,9 @@ func main() {
 	case "extract":
 		if len(args) < 1 {
 			log.Fatal("Usage: go run main.go extract <spotify_playlist_url>")
+		}
+		if !strings.Contains(args[0], "open.spotify.com/playlist") {
+			log.Fatalf("Invalid playlist URL, please input a Spotify playlist URL")
 		}
 		err := cli.RunExtract(db, args[0])
 		if err != nil {
