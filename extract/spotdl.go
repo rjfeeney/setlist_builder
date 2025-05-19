@@ -2,26 +2,40 @@ package extract
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
 type SpotifyConfig struct {
 	ClientID     string
 	ClientSecret string
 	TempDir      string
-	PlaylistID   string
+	PlaylistURL  string
+	DB           *database.Queries
 }
 
 type Extractor struct {
 	Config SpotifyConfig
+}
+
+type SpotdlData struct {
+	Name              string   `json:"name"`
+	Artist            string   `json:"artist"`
+	Genres            []string `json:"genres"`
+	DurationInSeconds int      `json:"duration"`
+	Year              string   `json:"year"`
+	Explicit          bool     `json:"explicit"`
 }
 
 func NewExtractor(config SpotifyConfig) *Extractor {
@@ -30,8 +44,6 @@ func NewExtractor(config SpotifyConfig) *Extractor {
 
 func (e *Extractor) ExtractMetaDataSpotdl() error {
 	saveFilePath := filepath.Join(e.Config.TempDir, "playlistData.spotdl")
-	playlistURL := fmt.Sprintf("https://open.spotify.com/playlist/%s", e.Config.PlaylistID)
-
 	expBackoff := backoff.NewExponentialBackOff()
 	expBackoff.InitialInterval = 2 * time.Second
 	expBackoff.MaxInterval = 2 * time.Minute
@@ -53,7 +65,7 @@ func (e *Extractor) ExtractMetaDataSpotdl() error {
 		extractCmd := exec.Command(
 			"spotdl",
 			"save",
-			playlistURL,
+			e.Config.PlaylistURL,
 			"--client-id", e.Config.ClientID,
 			"--client-secret", e.Config.ClientSecret,
 			"--save-file", saveFilePath,
@@ -91,6 +103,114 @@ func (e *Extractor) ExtractMetaDataSpotdl() error {
 	if err != nil {
 		return fmt.Errorf("extraction failed after multiple retries: %v", err)
 	}
-	fmt.Println("Successfully extracted meta-data from playlist!")
+	fmt.Println("Successfully extracted metadata from playlist!")
 	return nil
+}
+
+func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
+	var wg sync.WaitGroup
+	errorsChan := make(chan error, len(*tracks))
+
+	semaphore := make(chan struct{}, 9)
+
+	for _, track := range *tracks {
+		params := database.GetTrackParams{
+			Name:   track.Name,
+			Artist: track.Artist,
+		}
+		_, getErr := e.Config.DB.GetTrack(context.Background(), params)
+		if getErr != nil {
+			wg.Add(1)
+
+			go func(track SpotdlData) {
+				defer wg.Done()
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+				err := e.DownloadAudioSpotdl(track.Artist, track.Name)
+				if err != nil {
+					errorsChan <- fmt.Errorf("failed to download %s - %s: %v", track.Artist, track.Name, err)
+					os.RemoveAll(e.Config.TempDir)
+				}
+				mp3Folder := track.Artist + " " + track.Name + ".mp3"
+				mp3File := track.Artist + " - " + track.Name + ".mp3"
+				outputPath := filepath.Join(e.Config.TempDir, "audio", mp3Folder, mp3File)
+				key, bpm, essentiaErr := ExtractTempoAndKey(outputPath)
+				if essentiaErr != nil {
+					fmt.Printf("failed to get key/bpm for %s - %s: %v", track.Artist, track.Name, essentiaErr)
+				}
+				trackParams := database.CreateTrackParams{
+					Name:              track.Name,
+					Artist:            track.Artist,
+					Genre:             track.Genres,
+					DurationInSeconds: int32(track.DurationInSeconds),
+					Year:              track.Year,
+					Explicit:          track.Explicit,
+					Bpm:               int32(bpm),
+					Key:               key,
+				}
+				createErr := e.Config.DB.CreateTrack(context.Background(), trackParams)
+				if createErr != nil {
+					deleteparams := database.DeleteTrackParams{
+						Name:   track.Name,
+						Artist: track.Artist,
+					}
+					fmt.Printf("error saving track to database, deleting track info...: %v", createErr)
+					deleteErr := e.Config.DB.DeleteTrack(context.Background(), deleteparams)
+					if deleteErr != nil {
+						fmt.Printf("unable to delete track from database: %v", deleteErr)
+					}
+				}
+			}(track)
+		} else {
+			fmt.Printf("song %v is already in database, skipping...\n", track.Name)
+			continue
+		}
+	}
+
+	wg.Wait()
+	close(errorsChan)
+
+	if len(errorsChan) > 0 {
+		return fmt.Errorf("some downloads failed: %v", <-errorsChan)
+	}
+
+	return nil
+}
+
+func (e *Extractor) DownloadAudioSpotdl(artist, trackName string) error {
+	track := fmt.Sprintf("%s %s", artist, trackName)
+	audioFolderPath := filepath.Join(e.Config.TempDir, "/audio")
+	audioFolderErr := os.MkdirAll(audioFolderPath, 0755)
+	if audioFolderErr != nil {
+		return audioFolderErr
+	}
+	outputPath := filepath.Join(audioFolderPath, fmt.Sprintf("%s.mp3", track))
+	cmd := exec.Command("spotdl",
+		track,
+		"--client-id", e.Config.ClientID,
+		"--client-secret", e.Config.ClientSecret,
+		"--output", outputPath,
+	)
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	cmdErr := cmd.Run()
+	if cmdErr != nil {
+		return cmdErr
+	}
+	return nil
+}
+
+func (e *Extractor) ReadSpotdlData() (*[]SpotdlData, error) {
+	spotdlFile := e.Config.TempDir + "/playlistData.spotdl"
+	data, dataErr := os.ReadFile(spotdlFile)
+	if dataErr != nil {
+		return nil, fmt.Errorf("unable to read spotdl file: %v", dataErr)
+	}
+	var Tracks []SpotdlData
+	unmarshallErr := json.Unmarshal(data, &Tracks)
+	if unmarshallErr != nil {
+		return nil, fmt.Errorf("unable to unmarshal data: %v", unmarshallErr)
+	}
+	return &Tracks, nil
 }
