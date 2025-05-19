@@ -9,64 +9,51 @@ import (
 	"github.com/rjfeeney/setlist_builder/extract"
 	"github.com/rjfeeney/setlist_builder/internal/auth"
 	"github.com/rjfeeney/setlist_builder/internal/database"
-
-	_ "github.com/lib/pq"
 )
 
-func handleExtract(args []string) error {
+func RunExtract(db *sql.DB, playlistURL string) error {
 	spotifyID := os.Getenv("SPOTIFY_ID")
 	spotifySecret := os.Getenv("SPOTIFY_SECRET")
-	playlistURL := os.Getenv("REAL_PLAYLIST_URL")
-	dbURL := os.Getenv("DATABASE_URL")
 
-	if dbURL == "" {
-		return fmt.Errorf("DATABASE_URL not set")
+	if spotifyID == "" || spotifySecret == "" {
+		return fmt.Errorf("spotify credentials not set in environment")
 	}
-
-	db, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	dbQueries := database.New(db)
-
-	fixedPlaylistURL := strings.Split(playlistURL, "?")[0]
-	fmt.Printf("Using Playlist URL: %s\n", fixedPlaylistURL)
 
 	_, clientErr := auth.GetSpotifyClient(spotifyID, spotifySecret)
 	if clientErr != nil {
-		return fmt.Errorf("auth failure: %v", clientErr)
+		return fmt.Errorf("couldn't authenticate Spotify client: %v", clientErr)
 	}
 
-	tempDir, tempErr := os.MkdirTemp(".", "spotify-temp")
-	if tempErr != nil {
-		return tempErr
+	tempDir, err := os.MkdirTemp(".", "spotify-temp")
+	if err != nil {
+		return fmt.Errorf("couldn't create temp directory: %v", err)
 	}
 	defer os.RemoveAll(tempDir)
 
+	dbQueries := database.New(db)
 	config := extract.SpotifyConfig{
 		ClientID:     spotifyID,
 		ClientSecret: spotifySecret,
 		TempDir:      tempDir,
-		PlaylistURL:  fixedPlaylistURL,
+		PlaylistURL:  strings.Split(playlistURL, "?")[0],
 		DB:           dbQueries,
 	}
+
 	extractor := extract.NewExtractor(config)
 
 	if err := extractor.ExtractMetaDataSpotdl(); err != nil {
 		return err
 	}
 
-	trackInfo, err := extractor.ReadSpotdlData()
+	tracks, err := extractor.ReadSpotdlData()
 	if err != nil {
 		return err
 	}
 
-	if err := extract.DownloadAllTracks(extractor, trackInfo); err != nil {
+	if err := extract.DownloadAllTracks(extractor, tracks); err != nil {
 		return err
 	}
 
-	fmt.Println("All metadata extracted and saved successfully.")
+	fmt.Println("✅ Finished extracting playlist metadata.")
 	return nil
 }
