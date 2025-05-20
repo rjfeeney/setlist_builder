@@ -8,8 +8,7 @@ CREATE TABLE tracks (
     explicit BOOL NOT NULL DEFAULT false,
     bpm INT NOT NULL,
     key TEXT NOT NULL,
-    CONSTRAINT PK_name_artist PRIMARY KEY(name,artist),
-    dnp BOOL NOT NULL DEFAULT false
+    CONSTRAINT PK_name_artist PRIMARY KEY(name,artist)
 );
 
 -- +goose Down
