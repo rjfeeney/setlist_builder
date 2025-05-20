@@ -12,14 +12,11 @@ import (
 )
 
 func RunExtract(db *sql.DB, playlistURL string) error {
-	spotifyID := os.Getenv("SPOTIFY_ID")
-	spotifySecret := os.Getenv("SPOTIFY_SECRET")
-
-	if spotifyID == "" || spotifySecret == "" {
-		return fmt.Errorf("spotify credentials not set in environment")
+	if !strings.Contains(playlistURL, "open.spotify.com/playlist") {
+		return fmt.Errorf("invalid playlist URL, please input a Spotify playlist URL")
 	}
 
-	_, clientErr := auth.GetSpotifyClient(spotifyID, spotifySecret)
+	_, clientErr := auth.GetSpotifyClient()
 	if clientErr != nil {
 		return fmt.Errorf("couldn't authenticate Spotify client: %v", clientErr)
 	}
@@ -32,8 +29,8 @@ func RunExtract(db *sql.DB, playlistURL string) error {
 
 	dbQueries := database.New(db)
 	config := extract.SpotifyConfig{
-		ClientID:     spotifyID,
-		ClientSecret: spotifySecret,
+		ClientID:     os.Getenv("SPOTIFY_ID"),
+		ClientSecret: os.Getenv("SPOTIFY_SECRET"),
 		TempDir:      tempDir,
 		PlaylistURL:  strings.Split(playlistURL, "?")[0],
 		DB:           dbQueries,

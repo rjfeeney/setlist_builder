@@ -47,7 +47,7 @@ func TestGetSpotifyClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Logf("Using clientID: '%s', secret: '%s'", tt.clientID, tt.clientSecret)
 		t.Run(tt.name, func(t *testing.T) {
-			client, clientErr := GetSpotifyClient(tt.clientID, tt.clientSecret)
+			client, clientErr := GetSpotifyClient()
 			if (clientErr != nil) != tt.expectedError {
 				t.Errorf("Expected error: %v, got error: %v", tt.expectedError, (clientErr == nil))
 			}

@@ -11,6 +11,15 @@ import (
 	"github.com/lib/pq"
 )
 
+const cleanupTracks = `-- name: CleanupTracks :exec
+DELETE FROM tracks WHERE tracks.key IS NULL
+`
+
+func (q *Queries) CleanupTracks(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanupTracks)
+	return err
+}
+
 const createTrack = `-- name: CreateTrack :exec
 INSERT INTO tracks (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
 VALUES (
@@ -67,7 +76,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 
 const getTrack = `-- name: GetTrack :one
 
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key, dnp FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
 `
 
 type GetTrackParams struct {
@@ -87,6 +96,7 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 		&i.Explicit,
 		&i.Bpm,
 		&i.Key,
+		&i.Dnp,
 	)
 	return i, err
 }
