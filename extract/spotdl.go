@@ -3,6 +3,7 @@ package extract
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -119,7 +120,7 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 			Artist: track.Artist,
 		}
 		_, getErr := e.Config.DB.GetTrack(context.Background(), params)
-		if getErr != nil {
+		if getErr == sql.ErrNoRows {
 			wg.Add(1)
 
 			go func(track SpotdlData) {
@@ -160,8 +161,11 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 					}
 				}
 			}(track)
-		} else {
+		} else if getErr == nil {
 			fmt.Printf("song %v is already in database, skipping...\n", track.Name)
+			continue
+		} else {
+			fmt.Printf("database error on track %s - %s: %v\n", track.Artist, track.Name, getErr)
 			continue
 		}
 	}
