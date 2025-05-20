@@ -13,5 +13,4 @@ type Track struct {
 	Explicit          bool
 	Bpm               int32
 	Key               string
-	Dnp               bool
 }

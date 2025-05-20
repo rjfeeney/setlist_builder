@@ -76,7 +76,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 
 const getTrack = `-- name: GetTrack :one
 
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key, dnp FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
 `
 
 type GetTrackParams struct {
@@ -96,7 +96,6 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 		&i.Explicit,
 		&i.Bpm,
 		&i.Key,
-		&i.Dnp,
 	)
 	return i, err
 }
