@@ -113,7 +113,8 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 	errorsChan := make(chan error, len(*tracks))
 
 	semaphore := make(chan struct{}, 9)
-
+	downloadFail := 0
+	keyFail := 0
 	for _, track := range *tracks {
 		params := database.GetTrackParams{
 			Name:   track.Name,
@@ -130,6 +131,7 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 				err := e.DownloadAudioSpotdl(track.Artist, track.Name)
 				if err != nil {
 					errorsChan <- fmt.Errorf("failed to download %s - %s: %v", track.Artist, track.Name, err)
+					downloadFail += 1
 				}
 				mp3Folder := track.Artist + " " + track.Name + ".mp3"
 				mp3File := track.Artist + " - " + track.Name + ".mp3"
@@ -137,6 +139,7 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 				key, bpm, essentiaErr := ExtractTempoAndKey(outputPath)
 				if essentiaErr != nil {
 					fmt.Printf("failed to get key/bpm for %s - %s: %v\n", track.Artist, track.Name, essentiaErr)
+					keyFail += 1
 				}
 				trackParams := database.CreateTrackParams{
 					Name:              track.Name,
@@ -176,7 +179,8 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 	if len(errorsChan) > 0 {
 		return fmt.Errorf("some downloads failed: %v", <-errorsChan)
 	}
-
+	fmt.Printf("Total download fails: %d\n", downloadFail)
+	fmt.Printf("Total key/bpm fails: %d. Try running the clean command and retrying the setlist to attempt again\n", keyFail)
 	return nil
 }
 
