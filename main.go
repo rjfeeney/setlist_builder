@@ -12,11 +12,6 @@ import (
 	"github.com/rjfeeney/setlist_builder/internal/cli"
 )
 
-type command struct {
-	name string
-	args []string
-}
-
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: no .env file found")
@@ -60,6 +55,15 @@ func main() {
 		err := cli.RunReset(db)
 		if err != nil {
 			log.Fatalf("reset failed: %v", err)
+		}
+
+	case "clean":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for clean, command will execute regardless")
+		}
+		err := cli.RunClean(db)
+		if err != nil {
+			log.Fatalf("cleanup failed: %v", err)
 		}
 
 	default:
