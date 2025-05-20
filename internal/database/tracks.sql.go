@@ -12,7 +12,7 @@ import (
 )
 
 const cleanupTracks = `-- name: CleanupTracks :exec
-DELETE FROM tracks WHERE tracks.key IS NULL
+DELETE FROM tracks WHERE tracks.key = ''
 `
 
 func (q *Queries) CleanupTracks(ctx context.Context) error {

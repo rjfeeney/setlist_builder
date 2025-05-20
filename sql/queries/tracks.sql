@@ -20,4 +20,4 @@ SELECT * FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2;
 DELETE FROM tracks WHERE tracks.name = $1 ANd tracks.artist = $2;
 
 -- name: CleanupTracks :exec
-DELETE FROM tracks WHERE tracks.key IS NULL;
+DELETE FROM tracks WHERE tracks.key = '';
