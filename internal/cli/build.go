@@ -134,6 +134,8 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 			return requests, dnpList, duration, nil
 		} else if confirmation == "restart" {
 			fmt.Println("Restarting...")
+			os.RemoveAll(requestsTempDir)
+			os.RemoveAll(dnpTempDir)
 			return RunBuildQuestions()
 		} else {
 			fmt.Println("Invalid response, please try again")
