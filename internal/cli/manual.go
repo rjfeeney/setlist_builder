@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func RunManual(db *sql.DB, dbURL string) error {
@@ -16,6 +17,7 @@ func RunManual(db *sql.DB, dbURL string) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Warning: manually editing the database is only recommended to those who know SQL commands, please type 'Y' to proceed\n")
 	confirmation, _ := reader.ReadString('\n')
+	confirmation = strings.TrimSpace(confirmation)
 	if confirmation == "Y" || confirmation == "y" {
 		return cmd.Run()
 	} else {
