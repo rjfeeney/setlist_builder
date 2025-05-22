@@ -21,6 +21,6 @@ func RunManual(db *sql.DB, dbURL string) error {
 	if confirmation == "Y" || confirmation == "y" {
 		return cmd.Run()
 	} else {
-		return fmt.Errorf("Manual access not confirmed, exiting after user input: %v", confirmation)
+		return fmt.Errorf("manual access not confirmed, exiting after user input: %v", confirmation)
 	}
 }
