@@ -28,6 +28,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 	for {
 		fmt.Print("If you have a Spotify requests playlist made, please paste the link here, otherwise just hit enter: ")
 		requestsInput, _ := reader.ReadString('\n')
+		requestsInput = strings.TrimSpace(requestsInput)
 		if requestsInput == "" {
 			fmt.Println("No requests playlist specified")
 			break
@@ -64,11 +65,12 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 	}
 	for {
 		fmt.Print("If you have a Spotify 'Do Not Play' playlist made, please paste the link here, otherwise just hit enter: ")
-		requestsInput, _ := reader.ReadString('\n')
-		if requestsInput == "" {
+		dnpInput, _ := reader.ReadString('\n')
+		dnpInput = strings.TrimSpace(dnpInput)
+		if dnpInput == "" {
 			fmt.Println("No 'Do Not Play' playlist specified")
 			break
-		} else if !strings.Contains(requestsInput, "open.spotify.com/playlist") {
+		} else if !strings.Contains(dnpInput, "open.spotify.com/playlist") {
 			fmt.Println("Invalid, please enter a valid Spotify playlist")
 			continue
 		} else {
@@ -78,7 +80,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
 				TempDir:      tempDir,
-				PlaylistURL:  strings.Split(requestsInput, "?")[0],
+				PlaylistURL:  strings.Split(dnpInput, "?")[0],
 				DB:           nil,
 			}
 
