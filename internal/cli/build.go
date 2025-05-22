@@ -10,7 +10,9 @@ import (
 	"github.com/rjfeeney/setlist_builder/extract"
 )
 
-func RunBuildQuestions() (requests, dnpList []string, duration int32, err error) {
+func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err error) {
+	doNotPlays := []string{}
+	requests := []string{}
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		fmt.Print("Enter set duration in minutes: ")
@@ -19,7 +21,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 
 		d, err := strconv.Atoi(durationInput)
 		if err != nil {
-			fmt.Println("Please enter a valid number.")
+			fmt.Println("Invalid entry, please enter a whole number.")
 			continue
 		}
 		duration = int32(d)
@@ -37,7 +39,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			continue
 		} else {
 			wd, _ := os.Getwd()
-			tempDir, err := os.MkdirTemp(wd, "requests")
+			tempDir, _ := os.MkdirTemp(wd, "requests")
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
@@ -56,7 +58,6 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			if err != nil {
 				return nil, nil, 0, err
 			}
-			var requests []string
 			for _, track := range *tracks {
 				requests = append(requests, track.Name)
 			}
@@ -75,7 +76,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			continue
 		} else {
 			wd, _ := os.Getwd()
-			tempDir, err := os.MkdirTemp(wd, "donotplays")
+			tempDir, _ := os.MkdirTemp(wd, "donotplays")
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
@@ -94,7 +95,6 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			if err != nil {
 				return nil, nil, 0, err
 			}
-			var doNotPlays []string
 			for _, track := range *tracks {
 				doNotPlays = append(doNotPlays, track.Name)
 			}
@@ -104,12 +104,20 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 	fmt.Println("You have selected the following parameters:")
 	fmt.Printf("Duration: %d minutes\n", duration)
 	fmt.Println("Requests:")
-	for _, song := range requests {
-		fmt.Println(song)
+	if len(requests) == 0 {
+		fmt.Println("None")
+	} else {
+		for _, song := range requests {
+			fmt.Println(song)
+		}
 	}
 	fmt.Println("Do Not Plays:")
-	for _, dnp := range dnpList {
-		fmt.Println(dnp)
+	if len(doNotPlays) == 0 {
+		fmt.Println("None")
+	} else {
+		for _, dnp := range doNotPlays {
+			fmt.Println(dnp)
+		}
 	}
 	for {
 		fmt.Println("If this information is correct, please type 'Y' to begin the setlist building process.")
@@ -121,6 +129,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			fmt.Println("Success!")
 			return requests, dnpList, duration, nil
 		} else if confirmation == "restart" {
+			fmt.Println("Restarting...")
 			return RunBuildQuestions()
 		} else {
 			fmt.Println("Invalid response, please try again")
