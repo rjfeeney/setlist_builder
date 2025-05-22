@@ -75,6 +75,15 @@ func main() {
 			log.Fatalf("manual database access failed: %v", err)
 		}
 
+	case "build":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
+		}
+		_, _, _, err := cli.RunBuildQuestions()
+		if err != nil {
+			log.Fatalf("build questions failed: %v", err)
+		}
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 	}
