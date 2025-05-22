@@ -36,10 +36,11 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			continue
 		} else {
 			wd, _ := os.Getwd()
+			tempDir, err := os.MkdirTemp(wd, "requests")
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
-				TempDir:      wd,
+				TempDir:      tempDir,
 				PlaylistURL:  strings.Split(requestsInput, "?")[0],
 				DB:           nil,
 			}
@@ -58,6 +59,7 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			for _, track := range *tracks {
 				requests = append(requests, track.Name)
 			}
+			break
 		}
 	}
 	for {
@@ -67,14 +69,15 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			fmt.Println("No 'Do Not Play' playlist specified")
 			break
 		} else if !strings.Contains(requestsInput, "open.spotify.com/playlist") {
-			fmt.Println("Please enter a valid Spotify playlist")
+			fmt.Println("Invalid, please enter a valid Spotify playlist")
 			continue
 		} else {
 			wd, _ := os.Getwd()
+			tempDir, err := os.MkdirTemp(wd, "donotplays")
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
-				TempDir:      wd,
+				TempDir:      tempDir,
 				PlaylistURL:  strings.Split(requestsInput, "?")[0],
 				DB:           nil,
 			}
@@ -93,19 +96,20 @@ func RunBuildQuestions() (requests, dnpList []string, duration int32, err error)
 			for _, track := range *tracks {
 				doNotPlays = append(doNotPlays, track.Name)
 			}
+			break
 		}
 	}
+	fmt.Println("You have selected the following parameters:")
+	fmt.Printf("Duration: %d minutes\n", duration)
+	fmt.Println("Requests:")
+	for _, song := range requests {
+		fmt.Println(song)
+	}
+	fmt.Println("Do Not Plays:")
+	for _, dnp := range dnpList {
+		fmt.Println(dnp)
+	}
 	for {
-		fmt.Println("You have selected the following paramters:")
-		fmt.Printf("Duration: %d minutes\n", duration)
-		fmt.Println("Requests:")
-		for _, song := range requests {
-			fmt.Println(song)
-		}
-		fmt.Println("Do Not Plays:")
-		for _, dnp := range dnpList {
-			fmt.Println(dnp)
-		}
 		fmt.Println("If this information is correct, please type 'Y' to begin the setlist building process.")
 		fmt.Println("You also type 'restart' to start over from the beginning")
 		confirmation, _ := reader.ReadString('\n')
