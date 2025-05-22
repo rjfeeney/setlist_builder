@@ -66,6 +66,15 @@ func main() {
 			log.Fatalf("cleanup failed: %v", err)
 		}
 
+	case "manual":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
+		}
+		err := cli.RunManual(db, dbURL)
+		if err != nil {
+			log.Fatalf("manual database access failed: %v", err)
+		}
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 	}
