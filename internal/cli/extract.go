@@ -46,7 +46,7 @@ func RunExtract(db *sql.DB, playlistURL string) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("Please be patient as the audio files are downloaded and analyzed")
 	if err := extract.DownloadAllTracks(extractor, tracks); err != nil {
 		return err
 	}

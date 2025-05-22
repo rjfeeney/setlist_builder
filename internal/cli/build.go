@@ -11,6 +11,8 @@ import (
 )
 
 func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err error) {
+	var requestsTempDir string
+	var dnpTempDir string
 	doNotPlays := []string{}
 	requests := []string{}
 	reader := bufio.NewReader(os.Stdin)
@@ -39,11 +41,12 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 			continue
 		} else {
 			wd, _ := os.Getwd()
-			tempDir, _ := os.MkdirTemp(wd, "requests")
+			requestsTempDir, _ = os.MkdirTemp(wd, "requests")
+			defer os.RemoveAll(requestsTempDir)
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
-				TempDir:      tempDir,
+				TempDir:      requestsTempDir,
 				PlaylistURL:  strings.Split(requestsInput, "?")[0],
 				DB:           nil,
 			}
@@ -76,11 +79,12 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 			continue
 		} else {
 			wd, _ := os.Getwd()
-			tempDir, _ := os.MkdirTemp(wd, "donotplays")
+			dnpTempDir, _ = os.MkdirTemp(wd, "donotplays")
+			defer os.RemoveAll(dnpTempDir)
 			config := extract.SpotifyConfig{
 				ClientID:     os.Getenv("SPOTIFY_ID"),
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
-				TempDir:      tempDir,
+				TempDir:      dnpTempDir,
 				PlaylistURL:  strings.Split(dnpInput, "?")[0],
 				DB:           nil,
 			}
