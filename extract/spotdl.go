@@ -205,12 +205,21 @@ func (e *Extractor) DownloadAudioSpotdl(artist, trackName string) error {
 	if cmdErr != nil {
 		return cmdErr
 	}
-	for i := 0; i < 10; i++ {
+	maxWait := 30 * time.Second
+	pollInterval := 500 * time.Millisecond
+	waited := time.Duration(0)
+	for {
 		info, err := os.Stat(outputPath)
 		if err == nil && info.Size() > 0 {
 			break
 		}
-		time.Sleep(500 * time.Millisecond)
+
+		if waited >= maxWait {
+			return fmt.Errorf("file did not appear or stayed empty after %s: %s", maxWait, outputPath)
+		}
+
+		time.Sleep(pollInterval)
+		waited += pollInterval
 	}
 	return nil
 }
