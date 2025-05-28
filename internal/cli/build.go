@@ -235,7 +235,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		for totalDuration < int(set*60) {
 			loopMadeProgress := false
 			for staleRounds < maxStaleRounds {
-				if countTillRequest < 3 && len(requests) > 0 {
+				if countTillRequest < 3 || len(requests) < 0 {
 					for i := 0; i < len(workingTracks); i++ {
 						track := workingTracks[i]
 						check := tryAddTrackToSet(database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60))
