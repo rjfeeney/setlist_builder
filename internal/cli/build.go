@@ -304,17 +304,16 @@ func tryAddTrackToSet(
 ) bool {
 	if usedArtists[track.Artist] || addedSongs[track.Name] || track.Key == *lastKey {
 		return false
-	}
-	if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
+	} else if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
 		return false
+	} else {
+		*lastKey = track.Key
+		*totalDuration += int(track.DurationInSeconds)
+		usedArtists[track.Artist] = true
+		addedSongs[track.Name] = true
+		*singleSet = append(*singleSet, track.Name)
+		return true
 	}
-
-	*lastKey = track.Key
-	*totalDuration += int(track.DurationInSeconds)
-	usedArtists[track.Artist] = true
-	addedSongs[track.Name] = true
-	*singleSet = append(*singleSet, track.Name)
-	return true
 }
 
 func removeIndex(s []string, index int) []string {
