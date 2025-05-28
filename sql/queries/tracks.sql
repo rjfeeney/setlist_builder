@@ -38,7 +38,7 @@ SELECT * FROM working WHERE working.name = $1;
 SELECT * FROM tracks;
 
 -- name: GetAllWorking :many
-SELECT * FROM tracks;
+SELECT * FROM working;
 
 -- name: DeleteTrack :exec
 DELETE FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2;

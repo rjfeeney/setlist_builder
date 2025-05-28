@@ -159,18 +159,18 @@ func (q *Queries) GetAllTracks(ctx context.Context) ([]Track, error) {
 }
 
 const getAllWorking = `-- name: GetAllWorking :many
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM working
 `
 
-func (q *Queries) GetAllWorking(ctx context.Context) ([]Track, error) {
+func (q *Queries) GetAllWorking(ctx context.Context) ([]Working, error) {
 	rows, err := q.db.QueryContext(ctx, getAllWorking)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Track
+	var items []Working
 	for rows.Next() {
-		var i Track
+		var i Working
 		if err := rows.Scan(
 			&i.Name,
 			&i.Artist,

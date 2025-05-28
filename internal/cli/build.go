@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -162,7 +163,8 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		setLengths = append(setLengths, duration/3-10, duration/3-10, duration/3-10)
 	} else if duration > 180 {
 		fmt.Println("Alert: Per event contract, the band plays for a maximum of 3 hours, including breaks. Duration of the set will be set to the max length of 180 minutes.")
-		setLengths = append(setLengths, 180)
+		duration = 60
+		setLengths = append(setLengths, duration, duration, duration)
 	} else {
 		setLengths = append(setLengths, duration)
 	}
@@ -171,32 +173,34 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	for _, setLength := range setLengths {
 		fmt.Printf("%d minutes\n", setLength)
 	}
-
+	fmt.Println("Fetching tracks from DB...")
 	dbQueries := database.New(db)
-	tracks, tracksErr := dbQueries.GetAllTracks(context.Background())
+	workingTracks, tracksErr := dbQueries.GetAllTracks(context.Background())
 	if tracksErr != nil {
 		return fmt.Errorf("unable to get tracks in database: %v", tracksErr)
 	}
-
-	for _, track := range tracks {
+	fmt.Println("Tracks fetched.")
+	for _, workingTrack := range workingTracks {
 		workingParams := database.AddToWorkingParams{
-			Name:              track.Name,
-			Artist:            track.Artist,
-			Genre:             track.Genre,
-			DurationInSeconds: int32(track.DurationInSeconds),
-			Year:              track.Year,
-			Explicit:          track.Explicit,
-			Bpm:               int32(track.Bpm),
-			Key:               track.Key,
+			Name:              workingTrack.Name,
+			Artist:            workingTrack.Artist,
+			Genre:             workingTrack.Genre,
+			DurationInSeconds: int32(workingTrack.DurationInSeconds),
+			Year:              workingTrack.Year,
+			Explicit:          workingTrack.Explicit,
+			Bpm:               int32(workingTrack.Bpm),
+			Key:               workingTrack.Key,
 		}
 		addErr := dbQueries.AddToWorking(context.Background(), workingParams)
+		tracks, _ := dbQueries.GetAllWorking(context.Background())
+		for _, t := range tracks {
+			fmt.Println(t.Name)
+		}
 		if addErr != nil {
 			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
 	}
-	defer func() {
-		dbQueries.CleanupWorking(context.Background())
-	}()
+	fmt.Println("tracks added to working table")
 	for _, dnp := range dnpList {
 		_, workingErr := dbQueries.GetWorking(context.Background(), dnp)
 		if workingErr == nil {
@@ -208,37 +212,38 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			fmt.Println("track not found in database, skipping...")
 		}
 	}
-
-	workingTracks, workingErr := dbQueries.GetAllWorking(context.Background())
-	if workingErr != nil {
-		return fmt.Errorf("error getting all working tracks: %v", workingErr)
-	}
-	fmt.Println("Printing current working tracks list:")
-	for _, track := range workingTracks {
-		fmt.Println(track.Name)
-	}
-	fmt.Println("Done printing working tracks")
+	fmt.Println("DNP's remove from working table")
 
 	for _, set := range setLengths {
 		singleSet := []string{}
 		lastKey := ""
 		usedArtists := map[string]bool{}
 		totalDuration := 0
-
-		for totalDuration < int(set*60) {
+		margin := 180
+		target := int(set) * 60
+		fmt.Println("starting progress loop")
+		for totalDuration < target-margin {
 			maxStaleRounds := 5
 			staleRounds := 0
 			loopMadeProgress := false
 			for staleRounds < maxStaleRounds {
-				fmt.Println("suffling")
+				if totalDuration >= target-margin {
+					fmt.Println("hit target margin")
+					break
+				}
+				if len(workingTracks) == 0 {
+					log.Fatalf("working tracks is empty")
+				}
 				rand.Shuffle(len(workingTracks), func(i, j int) {
 					workingTracks[i], workingTracks[j] = workingTracks[j], workingTracks[i]
 				})
-				fmt.Println("suffle complete")
+
+				fmt.Println("shuffled")
+
 				if countTillRequest < 3 || len(requests) == 0 {
 					for i := 0; i < len(workingTracks); i++ {
 						track := workingTracks[i]
-						if tryAddTrackToSet(database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
+						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
 							countTillRequest += 1
 							loopMadeProgress = true
 							staleRounds = 0
@@ -256,7 +261,8 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 							fmt.Println("unable to get request track data, please ensure all requests are for songs included in the database")
 							continue
 						}
-						if tryAddTrackToSet(database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
+						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
+							fmt.Println("Request added")
 							countTillRequest = 0
 							loopMadeProgress = true
 							requests = removeIndex(requests, i)
@@ -273,28 +279,34 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 				}
 			}
 		}
-		if totalDuration < int(set*60)-180 {
-			fmt.Printf("Warning: Set %d is underfilled (%d seconds), may be impossible under current rules\n", len(setlist)+1, totalDuration)
+		if totalDuration < target {
+			underfill := target - totalDuration
+			underfillMinute := underfill / 60
+			underfillSecond := underfill % 60
+			fmt.Printf("Warning: Set %d is underfilled by %d minutes and %d seconds, may be impossible under current rules\n", len(setlist)+1, underfillMinute, underfillSecond)
 		}
 		setlist = append(setlist, singleSet)
 	}
 	fmt.Println("Setlist complete, printing")
 	for i, set := range setlist {
-		fmt.Printf("Set %d:\n", i)
+		fmt.Printf("Set %d:\n", (i + 1))
 		for j, song := range set {
-			fmt.Printf("%d: %s\n", j, song)
+			fmt.Printf("%d: %s\n", (j + 1), song)
 		}
 	}
-	fmt.Println("Breaks between sets:")
-	if len(setlist) == 2 {
-		fmt.Println("20 minutes")
-	} else if len(setlist) == 3 {
-		fmt.Println("15 minutes")
+	if len(setlist) > 1 {
+		fmt.Println("Breaks between sets:")
+		if len(setlist) == 2 {
+			fmt.Println("20 minutes")
+		} else if len(setlist) == 3 {
+			fmt.Println("15 minutes")
+		}
 	}
 	return nil
 }
 
 func tryAddTrackToSet(
+	db *sql.DB,
 	track database.Track,
 	singleSet *[]string,
 	addedSongs map[string]bool,
@@ -303,18 +315,31 @@ func tryAddTrackToSet(
 	totalDuration *int,
 	maxDuration int,
 ) bool {
-	if usedArtists[track.Artist] || addedSongs[track.Name] || track.Key == *lastKey {
+	if usedArtists[track.Artist] {
+		fmt.Printf("Rejected %s: artist %s already used\n", track.Name, track.Artist)
 		return false
-	} else if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
-		return false
-	} else {
-		*lastKey = track.Key
-		*totalDuration += int(track.DurationInSeconds)
-		usedArtists[track.Artist] = true
-		addedSongs[track.Name] = true
-		*singleSet = append(*singleSet, track.Name)
-		return true
 	}
+	if addedSongs[track.Name] {
+		fmt.Printf("Rejected %s: song already added\n", track.Name)
+		return false
+	}
+	if *lastKey != "" && track.Key == *lastKey {
+		fmt.Printf("Rejected %s: same key %s as last track\n", track.Name, track.Key)
+		return false
+	}
+	if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
+		fmt.Printf("Rejected %s: would exceed maxDuration (%d + %d > %d)\n", track.Name, *totalDuration, track.DurationInSeconds, maxDuration+300)
+		return false
+	}
+	*lastKey = track.Key
+	*totalDuration += int(track.DurationInSeconds)
+	usedArtists[track.Artist] = true
+	addedSongs[track.Name] = true
+	*singleSet = append(*singleSet, track.Name)
+	fmt.Printf("✅ Added track: %s by %s [%s, %ds]\n", track.Name, track.Artist, track.Key, track.DurationInSeconds)
+	dbQueries := database.New(db)
+	dbQueries.RemoveFromWorking(context.Background(), track.Name)
+	return true
 }
 
 func removeIndex(s []string, index int) []string {
