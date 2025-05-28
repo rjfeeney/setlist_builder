@@ -224,24 +224,26 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		lastKey := ""
 		usedArtists := map[string]bool{}
 		totalDuration := 0
-		fmt.Println("suffling")
-		rand.Shuffle(len(workingTracks), func(i, j int) {
-			workingTracks[i], workingTracks[j] = workingTracks[j], workingTracks[i]
-		})
-		fmt.Println("suffle complete")
-		maxStaleRounds := 5
-		staleRounds := 0
 
 		for totalDuration < int(set*60) {
+			maxStaleRounds := 5
+			staleRounds := 0
 			loopMadeProgress := false
 			for staleRounds < maxStaleRounds {
+				fmt.Println("suffling")
+				rand.Shuffle(len(workingTracks), func(i, j int) {
+					workingTracks[i], workingTracks[j] = workingTracks[j], workingTracks[i]
+				})
+				fmt.Println("suffle complete")
 				if countTillRequest < 3 || len(requests) == 0 {
 					for i := 0; i < len(workingTracks); i++ {
 						track := workingTracks[i]
 						if tryAddTrackToSet(database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
 							countTillRequest += 1
 							loopMadeProgress = true
+							staleRounds = 0
 							fmt.Printf("Track added: %v\n", track.Name)
+							break
 						} else {
 							fmt.Println("Did not pass validation check, trying next random song")
 						}
