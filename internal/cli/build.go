@@ -2,12 +2,15 @@ package cli
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/rjfeeney/setlist_builder/extract"
+	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
 func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err error) {
@@ -142,4 +145,44 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 			continue
 		}
 	}
+}
+
+func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error {
+	//CONNECT AND RUN IN MAIN TO ACCESS DB
+	dbQueries := database.New(db)
+	tracks, tracksErr := dbQueries.GetAllTracks(context.Background())
+	if tracksErr != nil {
+		return fmt.Errorf("Unable to get tracks in database: %v", tracksErr)
+	}
+	for _, track := range tracks {
+		workingParams := database.AddToWorkingParams{
+			Name:              track.Name,
+			Artist:            track.Artist,
+			Genre:             track.Genre,
+			DurationInSeconds: int32(track.DurationInSeconds),
+			Year:              track.Year,
+			Explicit:          track.Explicit,
+			Bpm:               int32(track.Bpm),
+			Key:               track.Key,
+		}
+		addErr := dbQueries.AddToWorking(context.Background(), workingParams)
+		if addErr != nil {
+			return fmt.Errorf("Error adding track to working table: %v", addErr)
+		}
+	}
+	for _, dnp := range dnpList {
+		removeErr := dbQueries.RemoveFromWorking(context.Background(), dnp)
+		if removeErr != nil {
+			return fmt.Errorf("Error removing dnp track to working table: %v", removeErr)
+		}
+	}
+	workingTracks, workingErr := dbQueries.GetAllWorking(context.Background())
+	if workingErr != nil {
+		return fmt.Errorf("Error getting all working tracks: %v", workingErr)
+	}
+	fmt.Println("Printing current working tracks list:")
+	for _, track := range workingTracks {
+		fmt.Println(track.Name)
+	}
+	return nil
 }
