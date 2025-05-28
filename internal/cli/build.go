@@ -194,6 +194,9 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
 	}
+	defer func() {
+		dbQueries.CleanupWorking(context.Background())
+	}()
 	for _, dnp := range dnpList {
 		_, workingErr := dbQueries.GetWorking(context.Background(), dnp)
 		if workingErr == nil {
