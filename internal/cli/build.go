@@ -134,7 +134,7 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 		confirmation = strings.TrimSpace(confirmation)
 		confirmation = strings.ToLower(confirmation)
 		if confirmation == "y" {
-			fmt.Println("Success!")
+			fmt.Println("Beginning build...")
 			return requests, dnpList, duration, nil
 		} else if confirmation == "restart" {
 			fmt.Println("Restarting...")
@@ -214,6 +214,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	for _, track := range workingTracks {
 		fmt.Println(track.Name)
 	}
+	fmt.Println("Done printing working tracks")
 
 	for _, set := range setLengths {
 		singleSet := []string{}
@@ -243,6 +244,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 						if check {
 							countTillRequest += 1
 							loopMadeProgress = true
+							fmt.Printf("Track added: %v\n", track.Name)
 						} else {
 							fmt.Println("Did not pass validation check, trying next random song")
 						}
