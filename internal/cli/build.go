@@ -148,7 +148,21 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 }
 
 func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error {
-	//CONNECT AND RUN IN MAIN TO ACCESS DB
+	setLengths := []int32{}
+	if duration > 90 && duration < 150 {
+		setLengths = append(setLengths, duration/2-10, duration/2-10)
+	} else if duration > 150 && duration < 180 {
+		setLengths = append(setLengths, duration/3-10, duration/3-10, duration/3-10)
+	} else if duration > 180 {
+		fmt.Println("Alert: Per event contract, the band plays for a maximum of 3 hours, including breaks. Duration of the set will be set to the max length of 180 minutes.")
+		setLengths = append(setLengths, 180)
+	} else {
+		setLengths = append(setLengths, duration)
+	}
+	fmt.Println("Set Lengths:")
+	for setLength := range setLengths {
+		fmt.Printf("%d minutes\n", setLength)
+	}
 	dbQueries := database.New(db)
 	tracks, tracksErr := dbQueries.GetAllTracks(context.Background())
 	if tracksErr != nil {
@@ -171,10 +185,16 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		}
 	}
 	for _, dnp := range dnpList {
-		removeErr := dbQueries.RemoveFromWorking(context.Background(), dnp)
-		if removeErr != nil {
-			return fmt.Errorf("error removing dnp track to working table: %v", removeErr)
+		_, workingErr := dbQueries.GetWorking(context.Background(), dnp)
+		if workingErr == nil {
+			removeErr := dbQueries.RemoveFromWorking(context.Background(), dnp)
+			if removeErr != nil {
+				return fmt.Errorf("error removing dnp track to working table: %v", removeErr)
+			}
+		} else if workingErr == sql.ErrNoRows {
+			fmt.Println("track not found in database, skipping...")
 		}
+
 	}
 	workingTracks, workingErr := dbQueries.GetAllWorking(context.Background())
 	if workingErr != nil {
