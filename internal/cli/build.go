@@ -221,16 +221,11 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		lastKey := ""
 		usedArtists := map[string]bool{}
 		totalDuration := 0
-
-		alltracks, workingErr := dbQueries.GetAllWorking(context.Background())
-		if workingErr != nil {
-			return fmt.Errorf("error getting all working tracks: %v", workingErr)
-		}
-
-		rand.Shuffle(len(alltracks), func(i, j int) {
-			alltracks[i], alltracks[j] = alltracks[j], alltracks[i]
+		fmt.Println("suffling")
+		rand.Shuffle(len(workingTracks), func(i, j int) {
+			workingTracks[i], workingTracks[j] = workingTracks[j], workingTracks[i]
 		})
-
+		fmt.Println("suffle complete")
 		maxStaleRounds := 5
 		staleRounds := 0
 
@@ -238,8 +233,8 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			loopMadeProgress := false
 			for staleRounds < maxStaleRounds {
 				if countTillRequest < 3 && len(requests) > 0 {
-					for i := 0; i < len(alltracks); i++ {
-						track := alltracks[i]
+					for i := 0; i < len(workingTracks); i++ {
+						track := workingTracks[i]
 						check := tryAddTrackToSet(database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60))
 						if check {
 							countTillRequest += 1
