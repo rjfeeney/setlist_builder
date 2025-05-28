@@ -11,5 +11,18 @@ CREATE TABLE tracks (
     CONSTRAINT PK_name_artist PRIMARY KEY(name,artist)
 );
 
+CREATE TABLE working (
+    name TEXT NOT NULL,
+    artist TEXT NOT NULL,
+    genre TEXT[],
+    duration_in_seconds INT NOT NULL,
+    year TEXT NOT NULL,
+    explicit BOOL NOT NULL DEFAULT false,
+    bpm INT NOT NULL,
+    key TEXT NOT NULL,
+    CONSTRAINT PK_working PRIMARY KEY(name,artist)
+);
+
 -- +goose Down
+DROP TABLE working;
 DROP TABLE tracks;

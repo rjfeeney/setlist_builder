@@ -11,12 +11,61 @@ import (
 	"github.com/lib/pq"
 )
 
+const addToWorking = `-- name: AddToWorking :exec
+
+INSERT INTO working (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8
+)
+`
+
+type AddToWorkingParams struct {
+	Name              string
+	Artist            string
+	Genre             []string
+	DurationInSeconds int32
+	Year              string
+	Explicit          bool
+	Bpm               int32
+	Key               string
+}
+
+func (q *Queries) AddToWorking(ctx context.Context, arg AddToWorkingParams) error {
+	_, err := q.db.ExecContext(ctx, addToWorking,
+		arg.Name,
+		arg.Artist,
+		pq.Array(arg.Genre),
+		arg.DurationInSeconds,
+		arg.Year,
+		arg.Explicit,
+		arg.Bpm,
+		arg.Key,
+	)
+	return err
+}
+
 const cleanupTracks = `-- name: CleanupTracks :exec
 DELETE FROM tracks WHERE tracks.key = ''
 `
 
 func (q *Queries) CleanupTracks(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, cleanupTracks)
+	return err
+}
+
+const cleanupWorking = `-- name: CleanupWorking :exec
+DELETE FROM working
+`
+
+func (q *Queries) CleanupWorking(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanupWorking)
 	return err
 }
 
@@ -60,8 +109,7 @@ func (q *Queries) CreateTrack(ctx context.Context, arg CreateTrackParams) error 
 }
 
 const deleteTrack = `-- name: DeleteTrack :exec
-
-DELETE FROM tracks WHERE tracks.name = $1 ANd tracks.artist = $2
+DELETE FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
 `
 
 type DeleteTrackParams struct {
@@ -74,8 +122,80 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 	return err
 }
 
-const getTrack = `-- name: GetTrack :one
+const getAllTracks = `-- name: GetAllTracks :many
 
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks
+`
+
+func (q *Queries) GetAllTracks(ctx context.Context) ([]Track, error) {
+	rows, err := q.db.QueryContext(ctx, getAllTracks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Track
+	for rows.Next() {
+		var i Track
+		if err := rows.Scan(
+			&i.Name,
+			&i.Artist,
+			pq.Array(&i.Genre),
+			&i.DurationInSeconds,
+			&i.Year,
+			&i.Explicit,
+			&i.Bpm,
+			&i.Key,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllWorking = `-- name: GetAllWorking :many
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks
+`
+
+func (q *Queries) GetAllWorking(ctx context.Context) ([]Track, error) {
+	rows, err := q.db.QueryContext(ctx, getAllWorking)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Track
+	for rows.Next() {
+		var i Track
+		if err := rows.Scan(
+			&i.Name,
+			&i.Artist,
+			pq.Array(&i.Genre),
+			&i.DurationInSeconds,
+			&i.Year,
+			&i.Explicit,
+			&i.Bpm,
+			&i.Key,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTrack = `-- name: GetTrack :one
 SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
 `
 
@@ -98,4 +218,13 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 		&i.Key,
 	)
 	return i, err
+}
+
+const removeFromWorking = `-- name: RemoveFromWorking :exec
+DELETE FROM working WHERE working.name = $1
+`
+
+func (q *Queries) RemoveFromWorking(ctx context.Context, name string) error {
+	_, err := q.db.ExecContext(ctx, removeFromWorking, name)
+	return err
 }

@@ -14,3 +14,14 @@ type Track struct {
 	Bpm               int32
 	Key               string
 }
+
+type Working struct {
+	Name              string
+	Artist            string
+	Genre             []string
+	DurationInSeconds int32
+	Year              string
+	Explicit          bool
+	Bpm               int32
+	Key               string
+}

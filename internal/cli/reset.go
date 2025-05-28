@@ -6,11 +6,14 @@ import (
 )
 
 func RunReset(db *sql.DB) error {
-	_, err := db.Exec("DELETE FROM tracks")
-	if err != nil {
-		return err
+	_, tracksErr := db.Exec("DELETE FROM tracks")
+	if tracksErr != nil {
+		return tracksErr
 	}
-
+	_, workingErr := db.Exec("DELETE FROM working")
+	if workingErr != nil {
+		return workingErr
+	}
 	fmt.Println("✅ Tracks table has been reset.")
 	return nil
 }
