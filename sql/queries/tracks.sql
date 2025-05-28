@@ -30,7 +30,9 @@ DELETE FROM working WHERE working.name = $1;
 
 -- name: GetTrack :one
 SELECT * FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2;
---
+
+-- name: GetWorking :one
+SELECT * FROM working WHERE working.name = $1;
 
 -- name: GetAllTracks :many
 SELECT * FROM tracks;

@@ -205,6 +205,13 @@ func (e *Extractor) DownloadAudioSpotdl(artist, trackName string) error {
 	if cmdErr != nil {
 		return cmdErr
 	}
+	for i := 0; i < 10; i++ {
+		info, err := os.Stat(outputPath)
+		if err == nil && info.Size() > 0 {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	return nil
 }
 

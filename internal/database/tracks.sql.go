@@ -123,7 +123,6 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 }
 
 const getAllTracks = `-- name: GetAllTracks :many
-
 SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks
 `
 
@@ -207,6 +206,26 @@ type GetTrackParams struct {
 func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, error) {
 	row := q.db.QueryRowContext(ctx, getTrack, arg.Name, arg.Artist)
 	var i Track
+	err := row.Scan(
+		&i.Name,
+		&i.Artist,
+		pq.Array(&i.Genre),
+		&i.DurationInSeconds,
+		&i.Year,
+		&i.Explicit,
+		&i.Bpm,
+		&i.Key,
+	)
+	return i, err
+}
+
+const getWorking = `-- name: GetWorking :one
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM working WHERE working.name = $1
+`
+
+func (q *Queries) GetWorking(ctx context.Context, name string) (Working, error) {
+	row := q.db.QueryRowContext(ctx, getWorking, name)
+	var i Working
 	err := row.Scan(
 		&i.Name,
 		&i.Artist,

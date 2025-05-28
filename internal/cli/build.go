@@ -152,7 +152,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	dbQueries := database.New(db)
 	tracks, tracksErr := dbQueries.GetAllTracks(context.Background())
 	if tracksErr != nil {
-		return fmt.Errorf("Unable to get tracks in database: %v", tracksErr)
+		return fmt.Errorf("unable to get tracks in database: %v", tracksErr)
 	}
 	for _, track := range tracks {
 		workingParams := database.AddToWorkingParams{
@@ -167,18 +167,18 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		}
 		addErr := dbQueries.AddToWorking(context.Background(), workingParams)
 		if addErr != nil {
-			return fmt.Errorf("Error adding track to working table: %v", addErr)
+			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
 	}
 	for _, dnp := range dnpList {
 		removeErr := dbQueries.RemoveFromWorking(context.Background(), dnp)
 		if removeErr != nil {
-			return fmt.Errorf("Error removing dnp track to working table: %v", removeErr)
+			return fmt.Errorf("error removing dnp track to working table: %v", removeErr)
 		}
 	}
 	workingTracks, workingErr := dbQueries.GetAllWorking(context.Background())
 	if workingErr != nil {
-		return fmt.Errorf("Error getting all working tracks: %v", workingErr)
+		return fmt.Errorf("error getting all working tracks: %v", workingErr)
 	}
 	fmt.Println("Printing current working tracks list:")
 	for _, track := range workingTracks {
