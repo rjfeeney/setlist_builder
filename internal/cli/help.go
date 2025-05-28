@@ -1,0 +1,32 @@
+package cli
+
+import "fmt"
+
+func RunHelp() {
+	fmt.Println("Welcome to the Setlist Builder CLI")
+	fmt.Println("This tool takes Spotify playlist URLs as input, extracts the metadata from the tracks, and uses that metadata to construct a setlist.")
+	fmt.Println("See below for a list of commands, given in the order that you will use them from start-finish.\n\nAll commands must begin with './setlist' followed by the cli command:")
+	fmt.Println("Note user input is denoted with []. For example, the extract command would be typed:\n./setlist extract https://open.spotify.com/playlist/3TomZ7bQYjYEAtccDEZEiw?si=71441cc0c6d345ec")
+	fmt.Println("")
+	fmt.Println("help")
+	fmt.Println("- It's how you got to where you are now! Take a look at the other commands below.")
+	fmt.Println("")
+	fmt.Println("extract [Spotify URL]")
+	fmt.Println("- Extracts metadata from all tracks in a Spotify playlist and stores it in the database. Songs already in the database will be skipped over.")
+	fmt.Println("- If songs fail to be added for whatever reason, try running the clean function (detailed below) and then rerunning the extract command.\n- Note that analysis of metadata is not guaranteed to be 100% accurate.")
+	fmt.Println("")
+	fmt.Println("clean")
+	fmt.Println("- Removes any tracks from the database that are missing info (usually key and bpm).\n- Use this before rerunning the extract command for any tracks that didn't make it on the first try.")
+	fmt.Println("")
+	fmt.Println("manual")
+	fmt.Println("- Allows for manual access to the database to make changes as needed.\n- This is only advised to those who are comfortable writing SQL commands.")
+	fmt.Println("")
+	fmt.Println("build")
+	fmt.Println("- Begins the setlist building process, starting with a questions about set length, requests, and 'Do Not Plays'.\n- Upon successful creation, the setlist will print out in your terminal.")
+	fmt.Println("")
+	fmt.Println("workclear")
+	fmt.Println("- Clears working table in the event that the build function failed and needs to be manually reset.")
+	fmt.Println("")
+	fmt.Println("reset")
+	fmt.Println("- Clears the entire database of all tracks.\n- Note that you should only do this if the data has somehow become corrupted or unuseable, as extracting new songs is the lengthiest part of the process.")
+}

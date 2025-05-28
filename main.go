@@ -36,6 +36,9 @@ func main() {
 	defer db.Close()
 
 	switch command {
+	case "help":
+		cli.RunHelp()
+
 	case "extract":
 		if len(args) < 1 {
 			log.Fatal("Usage: go run main.go extract <spotify_playlist_url>\nPlease input a Spotify playlist URL")
@@ -48,13 +51,22 @@ func main() {
 			log.Fatalf("extract failed: %v", err)
 		}
 
-	case "reset":
+	case "trackclear":
 		if len(args) != 0 {
-			fmt.Println("No additional arguments needed for reset, command will execute regardless")
+			fmt.Println("No additional arguments needed for TrackClear, command will execute regardless")
 		}
-		err := cli.RunReset(db)
+		err := cli.RunTrackClear(db)
 		if err != nil {
-			log.Fatalf("reset failed: %v", err)
+			log.Fatalf("TrackClear failed: %v", err)
+		}
+
+	case "workclear":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for WorkClear, command will execute regardless")
+		}
+		err := cli.RunWorkClear(db)
+		if err != nil {
+			log.Fatalf("WorkClear failed: %v", err)
 		}
 
 	case "clean":
