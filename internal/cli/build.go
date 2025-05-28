@@ -180,6 +180,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		return fmt.Errorf("unable to get tracks in database: %v", tracksErr)
 	}
 	fmt.Println("Tracks fetched.")
+	fmt.Println(workingTracks)
 	for _, workingTrack := range workingTracks {
 		workingParams := database.AddToWorkingParams{
 			Name:              workingTrack.Name,
@@ -192,10 +193,6 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			Key:               workingTrack.Key,
 		}
 		addErr := dbQueries.AddToWorking(context.Background(), workingParams)
-		tracks, _ := dbQueries.GetAllWorking(context.Background())
-		for _, t := range tracks {
-			fmt.Println(t.Name)
-		}
 		if addErr != nil {
 			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
