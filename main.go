@@ -51,6 +51,12 @@ func main() {
 			log.Fatalf("extract failed: %v", err)
 		}
 
+	case "list":
+		err := cli.RunList(db)
+		if err != nil {
+			log.Fatalf("list failed: %v", err)
+		}
+
 	case "trackclear":
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for TrackClear, command will execute regardless")
