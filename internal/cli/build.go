@@ -15,7 +15,8 @@ import (
 	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
-func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err error) {
+func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int32, err error) {
+	dbQueries := database.New(db)
 	var requestsTempDir string
 	var dnpTempDir string
 	doNotPlays := []string{}
@@ -32,6 +33,23 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 			continue
 		}
 		duration = int32(d)
+		tracks, tracksErr := dbQueries.GetAllTracks(context.Background())
+		if tracksErr != nil {
+			log.Fatalf("failed to get all tracks: %v", tracksErr)
+		}
+		maxDuration := 0
+		for i, track := range tracks {
+			fmt.Printf("%d. %s - %s\n", (i + 1), track.Name, track.Artist)
+			maxDuration += int(track.DurationInSeconds)
+		}
+		if duration > 180 {
+			fmt.Println("Maximum duration per the band's contract is 3 hours (180) minutes including breaks.")
+			fmt.Println("Duration will be set to the maximum amount for this setlist.")
+			duration = 180
+		}
+		if maxDuration < int(duration) {
+			log.Fatalf("Warning: set duration exceeds total duration of all songs in database, please add more songs before attempting to build a setlist this long")
+		}
 		break
 	}
 	for {
@@ -53,7 +71,7 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 				ClientSecret: os.Getenv("SPOTIFY_SECRET"),
 				TempDir:      requestsTempDir,
 				PlaylistURL:  strings.Split(requestsInput, "?")[0],
-				DB:           nil,
+				DB:           dbQueries,
 			}
 
 			extractor := extract.NewExtractor(config)
@@ -67,7 +85,18 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 				return nil, nil, 0, err
 			}
 			for _, track := range *tracks {
-				requests = append(requests, track.Name)
+				params := database.GetTrackParams{
+					Name:   track.Name,
+					Artist: track.Artist,
+				}
+				_, requestCheckErr := dbQueries.GetTrack(context.Background(), params)
+				if requestCheckErr == nil {
+					requests = append(requests, track.Name)
+				} else if requestCheckErr == sql.ErrNoRows {
+					fmt.Printf("Song %s was not found in the database, meaning it is not one of the songs that the band is able to perform. Skipping to next request...\n", track.Name)
+				} else {
+					fmt.Println("Unable to find track due to error, skipping...")
+				}
 			}
 			break
 		}
@@ -111,22 +140,28 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 		}
 	}
 	fmt.Println("You have selected the following parameters:")
+	fmt.Println("")
 	fmt.Printf("Duration: %d minutes\n", duration)
+	fmt.Println("")
 	fmt.Println("Requests:")
 	if len(requests) == 0 {
 		fmt.Println("None")
+		fmt.Println("")
 	} else {
 		for _, song := range requests {
 			fmt.Println(song)
 		}
+		fmt.Println("")
 	}
 	fmt.Println("Do Not Plays:")
 	if len(doNotPlays) == 0 {
 		fmt.Println("None")
+		fmt.Println("")
 	} else {
 		for _, dnp := range doNotPlays {
 			fmt.Println(dnp)
 		}
+		fmt.Println("")
 	}
 	for {
 		fmt.Println("If this information is correct, please type 'Y' to begin the setlist building process.")
@@ -136,12 +171,12 @@ func RunBuildQuestions() (requestsList, dnpList []string, duration int32, err er
 		confirmation = strings.ToLower(confirmation)
 		if confirmation == "y" {
 			fmt.Println("Beginning build...")
-			return requests, dnpList, duration, nil
+			return requests, doNotPlays, duration, nil
 		} else if confirmation == "restart" {
 			fmt.Println("Restarting...")
 			os.RemoveAll(requestsTempDir)
 			os.RemoveAll(dnpTempDir)
-			return RunBuildQuestions()
+			return RunBuildQuestions(db)
 		} else {
 			fmt.Println("Invalid response, please try again")
 			continue
@@ -157,14 +192,10 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	setLengths := []int32{}
 	countTillRequest := 0
 
-	if duration > 90 && duration < 150 {
+	if duration > 90 && duration <= 150 {
 		setLengths = append(setLengths, duration/2-10, duration/2-10)
-	} else if duration > 150 && duration < 180 {
+	} else if duration > 150 && duration <= 180 {
 		setLengths = append(setLengths, duration/3-10, duration/3-10, duration/3-10)
-	} else if duration > 180 {
-		fmt.Println("Alert: Per event contract, the band plays for a maximum of 3 hours, including breaks. Duration of the set will be set to the max length of 180 minutes.")
-		duration = 60
-		setLengths = append(setLengths, duration, duration, duration)
 	} else {
 		setLengths = append(setLengths, duration)
 	}
@@ -180,7 +211,6 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 		return fmt.Errorf("unable to get tracks in database: %v", tracksErr)
 	}
 	fmt.Println("Tracks fetched.")
-	fmt.Println(workingTracks)
 	for _, workingTrack := range workingTracks {
 		workingParams := database.AddToWorkingParams{
 			Name:              workingTrack.Name,
@@ -199,6 +229,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	}
 	fmt.Println("tracks added to working table")
 	for _, dnp := range dnpList {
+		fmt.Println(dnp)
 		_, workingErr := dbQueries.GetWorking(context.Background(), dnp)
 		if workingErr == nil {
 			removeErr := dbQueries.RemoveFromWorking(context.Background(), dnp)
@@ -212,6 +243,10 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 	fmt.Println("DNP's remove from working table")
 
 	for _, set := range setLengths {
+		workTracks, workTracksErr := dbQueries.GetAllWorking(context.Background())
+		if workTracksErr != nil {
+			return fmt.Errorf("unable to load working table: %v", workTracksErr)
+		}
 		singleSet := []string{}
 		lastKey := ""
 		usedArtists := map[string]bool{}
@@ -228,18 +263,16 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 					fmt.Println("hit target margin")
 					break
 				}
-				if len(workingTracks) == 0 {
+				if len(workTracks) == 0 {
 					log.Fatalf("working tracks is empty")
 				}
-				rand.Shuffle(len(workingTracks), func(i, j int) {
-					workingTracks[i], workingTracks[j] = workingTracks[j], workingTracks[i]
+				rand.Shuffle(len(workTracks), func(i, j int) {
+					workTracks[i], workTracks[j] = workTracks[j], workTracks[i]
 				})
 
-				fmt.Println("shuffled")
-
 				if countTillRequest < 3 || len(requests) == 0 {
-					for i := 0; i < len(workingTracks); i++ {
-						track := workingTracks[i]
+					for i := 0; i < len(workTracks); i++ {
+						track := workTracks[i]
 						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60)) {
 							countTillRequest += 1
 							loopMadeProgress = true
@@ -280,16 +313,20 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			underfill := target - totalDuration
 			underfillMinute := underfill / 60
 			underfillSecond := underfill % 60
+			fmt.Println("")
 			fmt.Printf("Warning: Set %d is underfilled by %d minutes and %d seconds, may be impossible under current rules\n", len(setlist)+1, underfillMinute, underfillSecond)
+			fmt.Println("")
 		}
 		setlist = append(setlist, singleSet)
 	}
 	fmt.Println("Setlist complete, printing")
+	fmt.Println("")
 	for i, set := range setlist {
 		fmt.Printf("Set %d:\n", (i + 1))
 		for j, song := range set {
 			fmt.Printf("%d: %s\n", (j + 1), song)
 		}
+		fmt.Println("")
 	}
 	if len(setlist) > 1 {
 		fmt.Println("Breaks between sets:")
@@ -299,6 +336,8 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32) error 
 			fmt.Println("15 minutes")
 		}
 	}
+	fmt.Println("")
+	fmt.Println("Setlist successfully built! Closing app...")
 	return nil
 }
 

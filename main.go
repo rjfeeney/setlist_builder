@@ -97,7 +97,7 @@ func main() {
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
 		}
-		requestsList, dnpList, duration, err := cli.RunBuildQuestions()
+		requestsList, dnpList, duration, err := cli.RunBuildQuestions(db)
 		if err != nil {
 			log.Fatalf("build questions failed: %v", err)
 		}
