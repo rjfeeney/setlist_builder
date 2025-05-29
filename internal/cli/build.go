@@ -38,8 +38,7 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 			log.Fatalf("failed to get all tracks: %v", tracksErr)
 		}
 		maxDuration := 0
-		for i, track := range tracks {
-			fmt.Printf("%d. %s - %s\n", (i + 1), track.Name, track.Artist)
+		for _, track := range tracks {
 			maxDuration += int(track.DurationInSeconds)
 		}
 		if duration > 180 {
