@@ -105,6 +105,7 @@ func (e *Extractor) ExtractMetaDataSpotdl() error {
 		return fmt.Errorf("extraction failed after multiple retries: %v", err)
 	}
 	fmt.Println("Successfully extracted metadata from playlist!")
+	fmt.Println("")
 	return nil
 }
 

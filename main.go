@@ -97,13 +97,17 @@ func main() {
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
 		}
-		requestsList, dnpList, duration, err := cli.RunBuildQuestions(db)
+		requestsList, dnpList, duration, explicit, err := cli.RunBuildQuestions(db)
 		if err != nil {
 			log.Fatalf("build questions failed: %v", err)
 		}
-		buildErr := cli.RunBuild(db, requestsList, dnpList, duration)
+		buildErr := cli.RunBuild(db, requestsList, dnpList, duration, explicit)
 		if buildErr != nil {
 			log.Fatalf("build function failed: %v", buildErr)
+			err := cli.RunWorkClear(db)
+			if err != nil {
+				log.Fatalf("error clearing working table: %v", err)
+			}
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
