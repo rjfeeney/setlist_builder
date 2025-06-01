@@ -10,14 +10,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/rjfeeney/setlist_builder/internal/constants"
 	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
-var validSingers = []string{"bos", "riley", "jared", "ty"}
-var validKeys = []string{"a", "a#", "b", "c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "ab", "bb", "db", "eb", "gb"}
-
 func validateSinger(singerInput string) bool {
-	for _, name := range validSingers {
+	for _, name := range constants.ValidSingers {
 		if name == singerInput {
 			return true
 		}
@@ -25,8 +23,8 @@ func validateSinger(singerInput string) bool {
 	return false
 }
 
-func validateKey(keyInput string) bool {
-	for _, key := range validKeys {
+func ValidateKey(keyInput string) bool {
+	for _, key := range constants.ValidKeys {
 		if key == keyInput {
 			return true
 		}
@@ -34,7 +32,7 @@ func validateKey(keyInput string) bool {
 	return false
 }
 
-func capitalize(s string) string {
+func Capitalize(s string) string {
 	if s == "" {
 		return s
 	}
@@ -80,14 +78,14 @@ func RunAddSingers(db *sql.DB) error {
 				if !validateSinger(singerInput) {
 					fmt.Println("")
 					fmt.Println("Invalid singer, please choose a valid singer from the list:")
-					for _, singer := range validSingers {
+					for _, singer := range constants.ValidSingers {
 						fmt.Print(singer + ", ")
 					}
 					fmt.Println("")
 					continue
 				}
 				for {
-					singerInput = capitalize(singerInput)
+					singerInput = Capitalize(singerInput)
 					fmt.Println("")
 					fmt.Printf("Please enter the key that %s sings %s by %s in (leaving blank with keep the song in its original key of %s):", singerInput, track.Name, track.Artist, track.OriginalKey)
 					keyInput, _ = reader.ReadString('\n')
@@ -96,11 +94,11 @@ func RunAddSingers(db *sql.DB) error {
 						fmt.Println("")
 						fmt.Printf("No key specified, defaulting to original key of %s", track.OriginalKey)
 						keyInput = track.OriginalKey
-					} else if !validateKey(keyInput) {
+					} else if !ValidateKey(keyInput) {
 						fmt.Println("")
 						fmt.Println("Invalid key, please choose a valid key from the list:")
-						for _, key := range validKeys {
-							key = capitalize(key)
+						for _, key := range constants.ValidKeys {
+							key = Capitalize(key)
 							fmt.Print(key + ", ")
 						}
 						fmt.Println("")
@@ -112,7 +110,7 @@ func RunAddSingers(db *sql.DB) error {
 			}
 			if singerInput != "skip" {
 				fmt.Println("")
-				keyInput = capitalize(keyInput)
+				keyInput = Capitalize(keyInput)
 				fmt.Printf("Added the following info for %s by %s:\n", track.Name, track.Artist)
 				fmt.Printf("Singer - %s\n", singerInput)
 				fmt.Printf("Key - %s\n", keyInput)

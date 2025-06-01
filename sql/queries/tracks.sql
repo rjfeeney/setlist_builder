@@ -10,7 +10,12 @@ VALUES (
     $7,
     $8
 );
---
+
+-- name: AddOriginalKey :exec
+UPDATE tracks
+SET
+    original_key = $1
+WHERE name = $2 AND artist = $3;
 
 -- name: GetTracksWithSingers :many
 SELECT
@@ -56,6 +61,9 @@ SELECT singer, key from singers WHERE song = $1 and artist = $2;
 SELECT NOT EXISTS (
   SELECT 1 FROM singers WHERE song = $1 AND artist = $2
 );
+
+-- name: CheckKeys :many
+SELECT name, artist FROM tracks WHERE original_key = '' OR original_key IS NULL;
 
 -- name: AddToSingers :exec
 INSERT INTO singers (song, artist, singer, key)

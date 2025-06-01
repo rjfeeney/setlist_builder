@@ -21,7 +21,7 @@ func RunHelp() {
 	fmt.Println("clean")
 	fmt.Println("- Removes any tracks from the database that are missing info (usually key and bpm).\n- Use this before rerunning the extract command for any tracks that didn't make it on the first try.")
 	fmt.Println("")
-	fmt.Println("manual")
+	fmt.Println("database")
 	fmt.Println("- Allows for manual access to the database to make changes as needed.\n- This is only advised to those who are comfortable writing SQL commands.")
 	fmt.Println("")
 	fmt.Println("build")

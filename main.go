@@ -84,11 +84,11 @@ func main() {
 			log.Fatalf("cleanup failed: %v", err)
 		}
 
-	case "manual":
+	case "database":
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
 		}
-		err := cli.RunManual(db, dbURL)
+		err := cli.RunDatabase(db, dbURL)
 		if err != nil {
 			log.Fatalf("manual database access failed: %v", err)
 		}
@@ -110,7 +110,7 @@ func main() {
 			}
 		}
 
-	case "addsingers":
+	case "singers":
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
 		}
@@ -119,6 +119,14 @@ func main() {
 			log.Fatalf("error adding singers: %v", err)
 		}
 
+	case "keys":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
+		}
+		err := cli.RunMissingKeys(db)
+		if err != nil {
+			log.Fatalf("error adding keys: %v", err)
+		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		fmt.Println("Please use the help command ('./setlist help') to see a list of all available commands")

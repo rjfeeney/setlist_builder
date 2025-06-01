@@ -12,6 +12,24 @@ import (
 	"github.com/lib/pq"
 )
 
+const addOriginalKey = `-- name: AddOriginalKey :exec
+UPDATE tracks
+SET
+    original_key = $1
+WHERE name = $2 AND artist = $3
+`
+
+type AddOriginalKeyParams struct {
+	OriginalKey string
+	Name        string
+	Artist      string
+}
+
+func (q *Queries) AddOriginalKey(ctx context.Context, arg AddOriginalKeyParams) error {
+	_, err := q.db.ExecContext(ctx, addOriginalKey, arg.OriginalKey, arg.Name, arg.Artist)
+	return err
+}
+
 const addSingerToWorking = `-- name: AddSingerToWorking :exec
 UPDATE working
 SET 
@@ -101,6 +119,38 @@ func (q *Queries) AddTrackToWorking(ctx context.Context, arg AddTrackToWorkingPa
 		arg.OriginalKey,
 	)
 	return err
+}
+
+const checkKeys = `-- name: CheckKeys :many
+SELECT name, artist FROM tracks WHERE original_key = '' OR original_key IS NULL
+`
+
+type CheckKeysRow struct {
+	Name   string
+	Artist string
+}
+
+func (q *Queries) CheckKeys(ctx context.Context) ([]CheckKeysRow, error) {
+	rows, err := q.db.QueryContext(ctx, checkKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CheckKeysRow
+	for rows.Next() {
+		var i CheckKeysRow
+		if err := rows.Scan(&i.Name, &i.Artist); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const checkSingers = `-- name: CheckSingers :one
@@ -329,7 +379,6 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 }
 
 const getTracksWithSingers = `-- name: GetTracksWithSingers :many
-
 SELECT
     t.name,
     t.artist,
