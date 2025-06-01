@@ -295,7 +295,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 	fmt.Println("Tracks fetched")
 	fmt.Println("")
 	for _, workingTrack := range workingTracks {
-		workingParams := database.AddToWorkingParams{
+		workingParams := database.AddTrackToWorkingParams{
 			Name:              workingTrack.Name,
 			Artist:            workingTrack.Artist,
 			Genre:             workingTrack.Genre,
@@ -303,9 +303,9 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 			Year:              workingTrack.Year,
 			Explicit:          workingTrack.Explicit,
 			Bpm:               int32(workingTrack.Bpm),
-			Key:               workingTrack.Key,
+			OriginalKey:       workingTrack.OriginalKey,
 		}
-		addErr := dbQueries.AddToWorking(context.Background(), workingParams)
+		addErr := dbQueries.AddTrackToWorking(context.Background(), workingParams)
 		if addErr != nil {
 			err := RunWorkClear(db)
 			if err != nil {
@@ -337,6 +337,8 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		singleSet := []string{}
 		lastKey := ""
 		secondToLastKey := ""
+		lastSinger := ""
+		secondToLastSinger := ""
 		usedArtists := map[string]bool{}
 		totalDuration := 0
 		margin := 180
@@ -361,11 +363,10 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 				if countTillRequest < 3 || len(requests) == 0 {
 					for i := 0; i < len(workTracks); i++ {
 						track := workTracks[i]
-						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit) {
+						if tryAddTrackToSet(db, track, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger) {
 							countTillRequest += 1
 							loopMadeProgress = true
 							staleRounds = 0
-							fmt.Printf("Track added: %v\n", track.Name)
 							break
 						} else {
 							fmt.Println("Did not pass validation check, trying next random song")
@@ -379,7 +380,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 							fmt.Println("unable to get request track data, please ensure all requests are for songs included in the database")
 							continue
 						}
-						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit) {
+						if tryAddTrackToSet(db, track, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger) {
 							fmt.Println("Request added")
 							countTillRequest = 0
 							loopMadeProgress = true
@@ -439,7 +440,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 
 func tryAddTrackToSet(
 	db *sql.DB,
-	track database.Track,
+	track database.Working,
 	singleSet *[]string,
 	addedSongs map[string]bool,
 	usedArtists map[string]bool,
@@ -448,6 +449,8 @@ func tryAddTrackToSet(
 	totalDuration *int,
 	maxDuration int,
 	explicit bool,
+	lastSinger *string,
+	secondToLastSinger *string,
 ) bool {
 	if usedArtists[track.Artist] {
 		fmt.Printf("Rejected %s: artist %s already used\n", track.Name, track.Artist)
@@ -457,10 +460,7 @@ func tryAddTrackToSet(
 		fmt.Printf("Rejected %s: song already added\n", track.Name)
 		return false
 	}
-	if *lastKey != "" && track.Key == *lastKey && track.Key == *secondToLastKey {
-		fmt.Printf("Rejected %s: same key (%s) as last two tracks\n", track.Name, track.Key)
-		return false
-	}
+
 	if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
 		fmt.Printf("Rejected %s: would exceed maxDuration (%d + %d > %d)\n", track.Name, *totalDuration, track.DurationInSeconds, maxDuration+300)
 		return false
@@ -469,16 +469,58 @@ func tryAddTrackToSet(
 		fmt.Printf("Rejected %s: track has explicit lyrics\n", track.Name)
 		return false
 	}
-	*secondToLastKey = *lastKey
-	*lastKey = track.Key
-	*totalDuration += int(track.DurationInSeconds)
-	usedArtists[track.Artist] = true
-	addedSongs[track.Name] = true
-	*singleSet = append(*singleSet, track.Name)
-	fmt.Printf("✅ Added track: %s by %s [%s, %ds]\n", track.Name, track.Artist, track.Key, track.DurationInSeconds)
+
 	dbQueries := database.New(db)
-	dbQueries.RemoveFromWorking(context.Background(), track.Name)
-	return true
+	params := database.GetSingerCombosParams{
+		Song:   track.Name,
+		Artist: track.Artist,
+	}
+	combos, combosErr := dbQueries.GetSingerCombos(context.Background(), params)
+	if combosErr != nil {
+		fmt.Printf("unable to get singer/key combo for %s: %v", track.Name, combosErr)
+		return false
+	}
+	for _, combo := range combos {
+		track.Singer = sql.NullString{String: combo.Singer, Valid: true}
+		track.SingerKey = sql.NullString{String: combo.Key, Valid: true}
+		if *lastKey != "" && track.SingerKey.String == *lastKey && track.SingerKey.String == *secondToLastKey {
+			fmt.Printf("Rejected %s: same key (%s) as last two tracks\n", track.Name, track.SingerKey.String)
+			continue
+		}
+
+		if *lastSinger != "" && track.Singer.String == *lastSinger && track.Singer.String == *secondToLastSinger {
+			fmt.Printf("Rejected %s: same singer (%s) for last two tracks\n", track.Name, track.Singer.String)
+			continue
+		}
+		addSingerParams := database.AddSingerToWorkingParams{
+			Singer:    sql.NullString{String: track.Singer.String, Valid: true},
+			SingerKey: sql.NullString{String: track.SingerKey.String, Valid: true},
+			Name:      track.Name,
+			Artist:    track.Artist,
+		}
+		addErr := dbQueries.AddSingerToWorking(context.Background(), addSingerParams)
+		if addErr != nil {
+			fmt.Printf("unable to add singer/key combo to working table for %s: %v", track.Name, addErr)
+			continue
+		}
+		*secondToLastKey = *lastKey
+		*lastKey = track.SingerKey.String
+		*secondToLastSinger = *lastSinger
+		*lastSinger = track.Singer.String
+		*totalDuration += int(track.DurationInSeconds)
+		usedArtists[track.Artist] = true
+		addedSongs[track.Name] = true
+		trackInfo := track.Name
+		if track.SingerKey.String != track.OriginalKey {
+			trackInfo = track.Name + " (" + track.SingerKey.String + ")"
+		}
+		*singleSet = append(*singleSet, trackInfo)
+		fmt.Printf("✅ Added track: %s by %s [%s, %ds]\n", track.Name, track.Artist, track.SingerKey.String, track.DurationInSeconds)
+		dbQueries.RemoveFromWorking(context.Background(), track.Name)
+		return true
+	}
+	fmt.Printf("Rejected: unable to find singer/key combo for %s that does not violate conditions\n", track.Name)
+	return false
 }
 
 func removeIndex(s []string, index int) []string {

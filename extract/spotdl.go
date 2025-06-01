@@ -150,7 +150,7 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 					Year:              track.Year,
 					Explicit:          track.Explicit,
 					Bpm:               int32(bpm),
-					Key:               key,
+					OriginalKey:       key,
 				}
 				createErr := e.Config.DB.CreateTrack(context.Background(), trackParams)
 				if createErr != nil {

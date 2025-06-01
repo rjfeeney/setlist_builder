@@ -109,6 +109,16 @@ func main() {
 				log.Fatalf("error clearing working table: %v", err)
 			}
 		}
+
+	case "addsingers":
+		if len(args) != 0 {
+			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
+		}
+		err := cli.RunAddSingers(db)
+		if err != nil {
+			log.Fatalf("error adding singers: %v", err)
+		}
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		fmt.Println("Please use the help command ('./setlist help') to see a list of all available commands")

@@ -1,5 +1,5 @@
 -- name: CreateTrack :exec
-INSERT INTO tracks (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
+INSERT INTO tracks (name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key)
 VALUES (
     $1,
     $2,
@@ -12,8 +12,32 @@ VALUES (
 );
 --
 
--- name: AddToWorking :exec
-INSERT INTO working (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
+-- name: GetTracksWithSingers :many
+SELECT
+    t.name,
+    t.artist,
+    t.genre,
+    t.duration_in_seconds,
+    t.year,
+    t.explicit,
+    t.bpm,
+    t.original_key,
+    s.singer,
+    s.key AS singer_key
+FROM
+    tracks t
+JOIN
+    singers s ON t.name = s.song AND t.artist = s.artist;
+
+-- name: AddSingerToWorking :exec
+UPDATE working
+SET 
+    singer = $1,
+    singer_key = $2
+WHERE name = $3 AND artist = $4;
+
+-- name: AddTrackToWorking :exec
+INSERT INTO working (name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key)
 VALUES (
     $1,
     $2,
@@ -23,6 +47,21 @@ VALUES (
     $6,
     $7,
     $8
+);
+
+-- name: GetSingerCombos :many
+SELECT singer, key from singers WHERE song = $1 and artist = $2;
+
+-- name: CheckSingers :exec
+SELECT * from singers WHERE singers.song = $1 AND singers.artist = $2;
+
+-- name: AddToSingers :exec
+INSERT INTO singers (song, artist, singer, key)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4
 );
 
 -- name: RemoveFromWorking :exec
@@ -44,7 +83,7 @@ SELECT * FROM working;
 DELETE FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2;
 
 -- name: CleanupTracks :exec
-DELETE FROM tracks WHERE tracks.key = '';
+DELETE FROM tracks WHERE tracks.original_key = '';
 
 -- name: CleanupWorking :exec
 DELETE FROM working;

@@ -7,13 +7,65 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/lib/pq"
 )
 
-const addToWorking = `-- name: AddToWorking :exec
+const addSingerToWorking = `-- name: AddSingerToWorking :exec
+UPDATE working
+SET 
+    singer = $1,
+    singer_key = $2
+WHERE name = $3 AND artist = $4
+`
 
-INSERT INTO working (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
+type AddSingerToWorkingParams struct {
+	Singer    sql.NullString
+	SingerKey sql.NullString
+	Name      string
+	Artist    string
+}
+
+func (q *Queries) AddSingerToWorking(ctx context.Context, arg AddSingerToWorkingParams) error {
+	_, err := q.db.ExecContext(ctx, addSingerToWorking,
+		arg.Singer,
+		arg.SingerKey,
+		arg.Name,
+		arg.Artist,
+	)
+	return err
+}
+
+const addToSingers = `-- name: AddToSingers :exec
+INSERT INTO singers (song, artist, singer, key)
+VALUES (
+    $1,
+    $2,
+    $3,
+    $4
+)
+`
+
+type AddToSingersParams struct {
+	Song   string
+	Artist string
+	Singer string
+	Key    string
+}
+
+func (q *Queries) AddToSingers(ctx context.Context, arg AddToSingersParams) error {
+	_, err := q.db.ExecContext(ctx, addToSingers,
+		arg.Song,
+		arg.Artist,
+		arg.Singer,
+		arg.Key,
+	)
+	return err
+}
+
+const addTrackToWorking = `-- name: AddTrackToWorking :exec
+INSERT INTO working (name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key)
 VALUES (
     $1,
     $2,
@@ -26,7 +78,7 @@ VALUES (
 )
 `
 
-type AddToWorkingParams struct {
+type AddTrackToWorkingParams struct {
 	Name              string
 	Artist            string
 	Genre             []string
@@ -34,11 +86,11 @@ type AddToWorkingParams struct {
 	Year              string
 	Explicit          bool
 	Bpm               int32
-	Key               string
+	OriginalKey       string
 }
 
-func (q *Queries) AddToWorking(ctx context.Context, arg AddToWorkingParams) error {
-	_, err := q.db.ExecContext(ctx, addToWorking,
+func (q *Queries) AddTrackToWorking(ctx context.Context, arg AddTrackToWorkingParams) error {
+	_, err := q.db.ExecContext(ctx, addTrackToWorking,
 		arg.Name,
 		arg.Artist,
 		pq.Array(arg.Genre),
@@ -46,13 +98,27 @@ func (q *Queries) AddToWorking(ctx context.Context, arg AddToWorkingParams) erro
 		arg.Year,
 		arg.Explicit,
 		arg.Bpm,
-		arg.Key,
+		arg.OriginalKey,
 	)
 	return err
 }
 
+const checkSingers = `-- name: CheckSingers :exec
+SELECT song, artist, singer, key from singers WHERE singers.song = $1 AND singers.artist = $2
+`
+
+type CheckSingersParams struct {
+	Song   string
+	Artist string
+}
+
+func (q *Queries) CheckSingers(ctx context.Context, arg CheckSingersParams) error {
+	_, err := q.db.ExecContext(ctx, checkSingers, arg.Song, arg.Artist)
+	return err
+}
+
 const cleanupTracks = `-- name: CleanupTracks :exec
-DELETE FROM tracks WHERE tracks.key = ''
+DELETE FROM tracks WHERE tracks.original_key = ''
 `
 
 func (q *Queries) CleanupTracks(ctx context.Context) error {
@@ -70,7 +136,7 @@ func (q *Queries) CleanupWorking(ctx context.Context) error {
 }
 
 const createTrack = `-- name: CreateTrack :exec
-INSERT INTO tracks (name, artist, genre, duration_in_seconds, year, explicit, bpm, key)
+INSERT INTO tracks (name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key)
 VALUES (
     $1,
     $2,
@@ -91,7 +157,7 @@ type CreateTrackParams struct {
 	Year              string
 	Explicit          bool
 	Bpm               int32
-	Key               string
+	OriginalKey       string
 }
 
 func (q *Queries) CreateTrack(ctx context.Context, arg CreateTrackParams) error {
@@ -103,7 +169,7 @@ func (q *Queries) CreateTrack(ctx context.Context, arg CreateTrackParams) error 
 		arg.Year,
 		arg.Explicit,
 		arg.Bpm,
-		arg.Key,
+		arg.OriginalKey,
 	)
 	return err
 }
@@ -123,7 +189,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 }
 
 const getAllTracks = `-- name: GetAllTracks :many
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key FROM tracks
 `
 
 func (q *Queries) GetAllTracks(ctx context.Context) ([]Track, error) {
@@ -143,7 +209,7 @@ func (q *Queries) GetAllTracks(ctx context.Context) ([]Track, error) {
 			&i.Year,
 			&i.Explicit,
 			&i.Bpm,
-			&i.Key,
+			&i.OriginalKey,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +225,7 @@ func (q *Queries) GetAllTracks(ctx context.Context) ([]Track, error) {
 }
 
 const getAllWorking = `-- name: GetAllWorking :many
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM working
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key, singer, singer_key FROM working
 `
 
 func (q *Queries) GetAllWorking(ctx context.Context) ([]Working, error) {
@@ -179,7 +245,9 @@ func (q *Queries) GetAllWorking(ctx context.Context) ([]Working, error) {
 			&i.Year,
 			&i.Explicit,
 			&i.Bpm,
-			&i.Key,
+			&i.OriginalKey,
+			&i.Singer,
+			&i.SingerKey,
 		); err != nil {
 			return nil, err
 		}
@@ -194,8 +262,45 @@ func (q *Queries) GetAllWorking(ctx context.Context) ([]Working, error) {
 	return items, nil
 }
 
+const getSingerCombos = `-- name: GetSingerCombos :many
+SELECT singer, key from singers WHERE song = $1 and artist = $2
+`
+
+type GetSingerCombosParams struct {
+	Song   string
+	Artist string
+}
+
+type GetSingerCombosRow struct {
+	Singer string
+	Key    string
+}
+
+func (q *Queries) GetSingerCombos(ctx context.Context, arg GetSingerCombosParams) ([]GetSingerCombosRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSingerCombos, arg.Song, arg.Artist)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetSingerCombosRow
+	for rows.Next() {
+		var i GetSingerCombosRow
+		if err := rows.Scan(&i.Singer, &i.Key); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTrack = `-- name: GetTrack :one
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2
 `
 
 type GetTrackParams struct {
@@ -214,13 +319,79 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 		&i.Year,
 		&i.Explicit,
 		&i.Bpm,
-		&i.Key,
+		&i.OriginalKey,
 	)
 	return i, err
 }
 
+const getTracksWithSingers = `-- name: GetTracksWithSingers :many
+
+SELECT
+    t.name,
+    t.artist,
+    t.genre,
+    t.duration_in_seconds,
+    t.year,
+    t.explicit,
+    t.bpm,
+    t.original_key,
+    s.singer,
+    s.key AS singer_key
+FROM
+    tracks t
+JOIN
+    singers s ON t.name = s.song AND t.artist = s.artist
+`
+
+type GetTracksWithSingersRow struct {
+	Name              string
+	Artist            string
+	Genre             []string
+	DurationInSeconds int32
+	Year              string
+	Explicit          bool
+	Bpm               int32
+	OriginalKey       string
+	Singer            string
+	SingerKey         string
+}
+
+func (q *Queries) GetTracksWithSingers(ctx context.Context) ([]GetTracksWithSingersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTracksWithSingers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTracksWithSingersRow
+	for rows.Next() {
+		var i GetTracksWithSingersRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.Artist,
+			pq.Array(&i.Genre),
+			&i.DurationInSeconds,
+			&i.Year,
+			&i.Explicit,
+			&i.Bpm,
+			&i.OriginalKey,
+			&i.Singer,
+			&i.SingerKey,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getWorking = `-- name: GetWorking :one
-SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, key FROM working WHERE working.name = $1
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key, singer, singer_key FROM working WHERE working.name = $1
 `
 
 func (q *Queries) GetWorking(ctx context.Context, name string) (Working, error) {
@@ -234,7 +405,9 @@ func (q *Queries) GetWorking(ctx context.Context, name string) (Working, error) 
 		&i.Year,
 		&i.Explicit,
 		&i.Bpm,
-		&i.Key,
+		&i.OriginalKey,
+		&i.Singer,
+		&i.SingerKey,
 	)
 	return i, err
 }

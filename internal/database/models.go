@@ -4,6 +4,17 @@
 
 package database
 
+import (
+	"database/sql"
+)
+
+type Singer struct {
+	Song   string
+	Artist string
+	Singer string
+	Key    string
+}
+
 type Track struct {
 	Name              string
 	Artist            string
@@ -12,7 +23,7 @@ type Track struct {
 	Year              string
 	Explicit          bool
 	Bpm               int32
-	Key               string
+	OriginalKey       string
 }
 
 type Working struct {
@@ -23,5 +34,7 @@ type Working struct {
 	Year              string
 	Explicit          bool
 	Bpm               int32
-	Key               string
+	OriginalKey       string
+	Singer            sql.NullString
+	SingerKey         sql.NullString
 }
