@@ -111,5 +111,6 @@ func main() {
 		}
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
+		fmt.Println("Please use the help command ('./setlist help') to see a list of all available commands")
 	}
 }

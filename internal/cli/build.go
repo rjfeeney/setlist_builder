@@ -336,6 +336,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		}
 		singleSet := []string{}
 		lastKey := ""
+		secondToLastKey := ""
 		usedArtists := map[string]bool{}
 		totalDuration := 0
 		margin := 180
@@ -360,7 +361,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 				if countTillRequest < 3 || len(requests) == 0 {
 					for i := 0; i < len(workTracks); i++ {
 						track := workTracks[i]
-						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60), explicit) {
+						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit) {
 							countTillRequest += 1
 							loopMadeProgress = true
 							staleRounds = 0
@@ -378,7 +379,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 							fmt.Println("unable to get request track data, please ensure all requests are for songs included in the database")
 							continue
 						}
-						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &totalDuration, int(set*60), explicit) {
+						if tryAddTrackToSet(db, database.Track(track), &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit) {
 							fmt.Println("Request added")
 							countTillRequest = 0
 							loopMadeProgress = true
@@ -443,6 +444,7 @@ func tryAddTrackToSet(
 	addedSongs map[string]bool,
 	usedArtists map[string]bool,
 	lastKey *string,
+	secondToLastKey *string,
 	totalDuration *int,
 	maxDuration int,
 	explicit bool,
@@ -455,8 +457,8 @@ func tryAddTrackToSet(
 		fmt.Printf("Rejected %s: song already added\n", track.Name)
 		return false
 	}
-	if *lastKey != "" && track.Key == *lastKey {
-		fmt.Printf("Rejected %s: same key %s as last track\n", track.Name, track.Key)
+	if *lastKey != "" && track.Key == *lastKey && track.Key == *secondToLastKey {
+		fmt.Printf("Rejected %s: same key (%s) as last two tracks\n", track.Name, track.Key)
 		return false
 	}
 	if *totalDuration+int(track.DurationInSeconds) > maxDuration+300 {
@@ -467,6 +469,7 @@ func tryAddTrackToSet(
 		fmt.Printf("Rejected %s: track has explicit lyrics\n", track.Name)
 		return false
 	}
+	*secondToLastKey = *lastKey
 	*lastKey = track.Key
 	*totalDuration += int(track.DurationInSeconds)
 	usedArtists[track.Artist] = true
