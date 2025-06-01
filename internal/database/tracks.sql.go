@@ -103,8 +103,10 @@ func (q *Queries) AddTrackToWorking(ctx context.Context, arg AddTrackToWorkingPa
 	return err
 }
 
-const checkSingers = `-- name: CheckSingers :exec
-SELECT song, artist, singer, key from singers WHERE singers.song = $1 AND singers.artist = $2
+const checkSingers = `-- name: CheckSingers :one
+SELECT NOT EXISTS (
+  SELECT 1 FROM singers WHERE song = $1 AND artist = $2
+)
 `
 
 type CheckSingersParams struct {
@@ -112,9 +114,11 @@ type CheckSingersParams struct {
 	Artist string
 }
 
-func (q *Queries) CheckSingers(ctx context.Context, arg CheckSingersParams) error {
-	_, err := q.db.ExecContext(ctx, checkSingers, arg.Song, arg.Artist)
-	return err
+func (q *Queries) CheckSingers(ctx context.Context, arg CheckSingersParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkSingers, arg.Song, arg.Artist)
+	var not_exists bool
+	err := row.Scan(&not_exists)
+	return not_exists, err
 }
 
 const cleanupTracks = `-- name: CleanupTracks :exec

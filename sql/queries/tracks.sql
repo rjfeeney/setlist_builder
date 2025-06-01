@@ -52,8 +52,10 @@ VALUES (
 -- name: GetSingerCombos :many
 SELECT singer, key from singers WHERE song = $1 and artist = $2;
 
--- name: CheckSingers :exec
-SELECT * from singers WHERE singers.song = $1 AND singers.artist = $2;
+-- name: CheckSingers :one
+SELECT NOT EXISTS (
+  SELECT 1 FROM singers WHERE song = $1 AND artist = $2
+);
 
 -- name: AddToSingers :exec
 INSERT INTO singers (song, artist, singer, key)
