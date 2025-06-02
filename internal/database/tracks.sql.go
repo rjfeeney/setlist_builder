@@ -378,6 +378,26 @@ func (q *Queries) GetTrack(ctx context.Context, arg GetTrackParams) (Track, erro
 	return i, err
 }
 
+const getTrackFromName = `-- name: GetTrackFromName :one
+SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key FROM tracks WHERE name ILIKE $1
+`
+
+func (q *Queries) GetTrackFromName(ctx context.Context, name string) (Track, error) {
+	row := q.db.QueryRowContext(ctx, getTrackFromName, name)
+	var i Track
+	err := row.Scan(
+		&i.Name,
+		&i.Artist,
+		pq.Array(&i.Genre),
+		&i.DurationInSeconds,
+		&i.Year,
+		&i.Explicit,
+		&i.Bpm,
+		&i.OriginalKey,
+	)
+	return i, err
+}
+
 const getTracksWithSingers = `-- name: GetTracksWithSingers :many
 SELECT
     t.name,

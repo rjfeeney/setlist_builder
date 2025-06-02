@@ -46,10 +46,52 @@ func RunMissingKeys(db *sql.DB) error {
 			if addErr != nil {
 				log.Fatalf("error adding original key to track: %v", addErr)
 			}
-			fmt.Printf("Successfully updated key of %s - %s to %s\n", emptyKeyTrack.Name, emptyKeyTrack.Artist, key)
+			fmt.Printf("✅ Successfully updated key of %s - %s to %s\n", emptyKeyTrack.Name, emptyKeyTrack.Artist, key)
 			break
 		}
 	}
 	fmt.Println("End of empty key tracks. To make further changes please use the database command (./setlist database)")
+	return nil
+}
+
+func RunKeysSearch(db *sql.DB) error {
+	var changedToKey string
+	dbQueries := database.New(db)
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Please enter the track name you would like to change the key of: ")
+	name, _ := reader.ReadString('\n')
+	name = strings.TrimSpace(name)
+	track, getErr := dbQueries.GetTrackFromName(context.Background(), name)
+	if getErr != nil {
+		return getErr
+	}
+	fmt.Printf("✅ %s found! ", track.Name)
+	for {
+		fmt.Print("Please enter the key for this song: ")
+		keyInput, _ := reader.ReadString('\n')
+		keyInput = strings.TrimSpace(strings.ToLower(keyInput))
+		if !ValidateKey(keyInput) {
+			fmt.Println("")
+			fmt.Println("Invalid key, please choose a valid key from the list:")
+			for _, key := range constants.ValidKeys {
+				key = Capitalize(key)
+				fmt.Print(key + ", ")
+			}
+			fmt.Println("")
+			continue
+		}
+		changedToKey = keyInput
+		break
+	}
+	params := database.AddOriginalKeyParams{
+		OriginalKey: changedToKey,
+		Name:        track.Name,
+		Artist:      track.Artist,
+	}
+	addErr := dbQueries.AddOriginalKey(context.Background(), params)
+	if addErr != nil {
+		return addErr
+	}
+	fmt.Printf("✅ Succesfully changed key of %s to %s\n", track.Name, changedToKey)
 	return nil
 }

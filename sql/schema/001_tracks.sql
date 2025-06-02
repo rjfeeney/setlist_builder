@@ -6,8 +6,8 @@ CREATE TABLE tracks (
     duration_in_seconds INT NOT NULL,
     year TEXT NOT NULL,
     explicit BOOL NOT NULL DEFAULT false,
-    bpm INT NOT NULL,
-    original_key TEXT NOT NULL,
+    bpm INT NOT NULL DEFAULT 0,
+    original_key TEXT NOT NULL DEFAULT '',
     CONSTRAINT PK_name_artist PRIMARY KEY(name,artist)
 );
 

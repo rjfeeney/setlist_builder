@@ -54,6 +54,9 @@ VALUES (
     $8
 );
 
+-- name: GetTrackFromName :one
+SELECT * FROM tracks WHERE name ILIKE $1;
+
 -- name: GetSingerCombos :many
 SELECT singer, key from singers WHERE song = $1 and artist = $2;
 

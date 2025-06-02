@@ -18,7 +18,7 @@ func main() {
 	}
 
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <command> [args]")
+		fmt.Println("Usage: ./setlist <command> [args]")
 		os.Exit(1)
 	}
 
@@ -41,7 +41,7 @@ func main() {
 
 	case "extract":
 		if len(args) < 1 {
-			log.Fatal("Usage: go run main.go extract <spotify_playlist_url>\nPlease input a Spotify playlist URL")
+			log.Fatal("Usage: ./setlist extract <spotify_playlist_url>\nPlease input a Spotify playlist URL")
 		}
 		if !strings.Contains(args[0], "open.spotify.com/playlist") {
 			log.Fatalf("Invalid playlist URL, please input a Spotify playlist URL")
@@ -120,13 +120,20 @@ func main() {
 		}
 
 	case "keys":
-		if len(args) != 0 {
-			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
+		if len(args) == 0 {
+			err := cli.RunKeysSearch(db)
+			if err != nil {
+				log.Fatalf("error adding keys: %v", err)
+			}
+		} else if len(args) > 1 || args[0] != "missing" {
+			log.Fatal("Usage: ./setlist keys {missing}")
+		} else {
+			err := cli.RunMissingKeys(db)
+			if err != nil {
+				log.Fatalf("error adding keys: %v", err)
+			}
 		}
-		err := cli.RunMissingKeys(db)
-		if err != nil {
-			log.Fatalf("error adding keys: %v", err)
-		}
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		fmt.Println("Please use the help command ('./setlist help') to see a list of all available commands")
