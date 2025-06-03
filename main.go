@@ -61,27 +61,27 @@ func main() {
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for TrackClear, command will execute regardless")
 		}
-		err := cli.RunTrackClear(db)
+		err := cli.RunReset(db)
 		if err != nil {
 			log.Fatalf("TrackClear failed: %v", err)
 		}
 
-	case "workclear":
-		if len(args) != 0 {
-			fmt.Println("No additional arguments needed for WorkClear, command will execute regardless")
+	case "clear":
+		if len(args) != 1 {
+			log.Fatal("Usage: ./setlist clear [table]")
 		}
-		err := cli.RunWorkClear(db)
+		err := cli.RunClear(db, args[0])
 		if err != nil {
-			log.Fatalf("WorkClear failed: %v", err)
+			log.Fatalf("Clear failed: %v", err)
 		}
 
 	case "clean":
-		if len(args) != 0 {
-			fmt.Println("No additional arguments needed for clean, command will execute regardless")
+		if len(args) != 1 {
+			log.Fatal("Usage: ./setlist clean [table]")
 		}
-		err := cli.RunClean(db)
+		err := cli.RunClean(db, args[0])
 		if err != nil {
-			log.Fatalf("cleanup failed: %v", err)
+			log.Fatalf("Clean failed: %v", err)
 		}
 
 	case "database":
@@ -97,14 +97,14 @@ func main() {
 		if len(args) != 0 {
 			fmt.Println("No additional arguments needed for manual database access, command will execute regardless")
 		}
-		requestsList, dnpList, duration, explicit, err := cli.RunBuildQuestions(db)
+		requestsList, dnpList, singersList, duration, requestCount, explicit, err := cli.RunBuildQuestions(db)
 		if err != nil {
 			log.Fatalf("build questions failed: %v", err)
 		}
-		buildErr := cli.RunBuild(db, requestsList, dnpList, duration, explicit)
+		buildErr := cli.RunBuild(db, requestsList, dnpList, singersList, duration, requestCount, explicit)
 		if buildErr != nil {
 			log.Fatalf("build function failed: %v", buildErr)
-			err := cli.RunWorkClear(db)
+			err := cli.RunClear(db, "working")
 			if err != nil {
 				log.Fatalf("error clearing working table: %v", err)
 			}

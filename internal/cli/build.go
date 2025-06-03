@@ -15,9 +15,8 @@ import (
 	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
-func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int32, explicit bool, err error) {
-	//clear to start each func cleanly
-	clearErr := RunWorkClear(db)
+func RunBuildQuestions(db *sql.DB) (requestsList, dnpList, singers []string, duration, requestNum int32, explicit bool, err error) {
+	clearErr := RunClear(db, "working")
 	fmt.Println("")
 	if clearErr != nil {
 		log.Fatalf("failed to clear working table at start of build: %v", clearErr)
@@ -26,9 +25,10 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 	dbQueries := database.New(db)
 	var requestsTempDir string
 	var dnpTempDir string
-	var explicitBool bool
+	var explicitOffBool bool
 	doNotPlays := []string{}
 	requests := []string{}
+	singerList := []string{}
 	reader := bufio.NewReader(os.Stdin)
 
 	//Duration
@@ -59,23 +59,83 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 		if maxDuration < int(duration) {
 			log.Fatalf("Warning: set duration exceeds total duration of all songs in database, please add more songs before attempting to build a setlist this long")
 		}
-		fmt.Printf("Duration set to %d minutes", duration)
+		fmt.Printf("Duration set to %d minutes\n", duration)
 		fmt.Println("")
 		break
 	}
 
+	//Singers
+	singerCount, countErr := dbQueries.CountSingers(context.Background())
+	if countErr != nil {
+		fmt.Printf("error counting singers: %v\n", countErr)
+		fmt.Println("Proceeding...")
+	}
+	if singerCount == 0 && countErr == nil {
+		fmt.Println("No singers in database, please use the 'singers' command to add singers to the database")
+		return nil, nil, nil, 0, 0, false, nil
+	} else if singerCount == 1 && countErr == nil {
+		singerList, _ = dbQueries.GetSingers(context.Background())
+		fmt.Println("Only one singer in database, repeat singer rule will be ignored")
+	} else {
+		fmt.Println("Who will be singing?")
+		finishedAddingSingers := false
+		for !finishedAddingSingers {
+			fmt.Print("Enter a singer: ")
+			singerInput, _ := reader.ReadString('\n')
+			singerInput = strings.TrimSpace(strings.ToLower(singerInput))
+			if singerInput == "" {
+				if len(singerList) >= 1 {
+					finishedAddingSingers = true
+					break
+				} else {
+					fmt.Println("Must have at least one singer")
+					fmt.Println("")
+					continue
+				}
+			}
+			if !ValidateSinger(singerInput) {
+				InvalidSingerMessage()
+				continue
+			}
+			alreadyAdded := false
+			for _, singer := range singerList {
+				if singer == singerInput {
+					fmt.Println("")
+					fmt.Printf("%s has already been added as a singer, if you are done adding singers press enter to proceed.\n", Capitalize(singerInput))
+					alreadyAdded = true
+					break
+				}
+				continue
+			}
+			if !alreadyAdded {
+				singerList = append(singerList, singerInput)
+				fmt.Println("")
+				fmt.Printf("%s added\n", Capitalize(singerInput))
+				fmt.Println("Enter next singer or hit enter to proceed.")
+			}
+		}
+	}
+	if len(singerList) == 1 {
+		fmt.Println("Only one singer specified, repeat singer rule will be ignored")
+	}
+	var capitalizedSingerList []string
+	for _, singer := range singerList {
+		capitalizedSingerList = append(capitalizedSingerList, Capitalize(singer))
+	}
+
 	//Explicit
 	for {
-		fmt.Println("Would you like to exclude any songs with explicit lyrics?\nPlease type 'Y' to exclude or 'N' if you are okay with explicit lyrics in the setlist:")
+		fmt.Println("")
+		fmt.Print("Are you okay including songs that may have explicit lyrics? (Y/N): ")
 		explicitRsp, _ := reader.ReadString('\n')
 		explicitRsp = strings.TrimSpace(explicitRsp)
 		explicitRsp = strings.ToLower(explicitRsp)
 		if explicitRsp == "y" {
-			fmt.Println("Note: songs in your request list will not be added to the setlist if they have explicit lyrics")
-			explicitBool = false
-		} else if explicitRsp == "n" {
 			fmt.Println("Allowing explicit lyrics...")
-			explicitBool = true
+			explicitOffBool = false
+		} else if explicitRsp == "n" {
+			fmt.Println("Note: songs in your request list will not be added to the setlist if they have explicit lyrics")
+			explicitOffBool = true
 		} else {
 			fmt.Println("Invalid response, please try again")
 			continue
@@ -111,36 +171,77 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 			extractor := extract.NewExtractor(config)
 
 			if err := extractor.ExtractMetaDataSpotdl(); err != nil {
-				return nil, nil, 0, false, err
+				return nil, nil, nil, 0, 0, false, err
 			}
 
 			tracks, err := extractor.ReadSpotdlData()
 			if err != nil {
-				return nil, nil, 0, false, err
+				return nil, nil, nil, 0, 0, false, err
 			}
 			for _, track := range *tracks {
+				requestAlreadyAdded := false
+				for _, request := range requests {
+					if track.Name == request {
+						fmt.Printf("Request %s has already been added to the requests list, skipping to next request...\n", track.Name)
+						fmt.Println("")
+						requestAlreadyAdded = true
+						break
+					}
+				}
+				if requestAlreadyAdded {
+					continue
+				}
 				params := database.GetTrackParams{
 					Name:   track.Name,
 					Artist: track.Artist,
 				}
 				_, requestCheckErr := dbQueries.GetTrack(context.Background(), params)
-				if requestCheckErr == nil {
-					if !explicitBool && track.Explicit {
-						fmt.Printf("Request %s has explicit lyrics, and the 'No Explicit Lyrics' rule has been turned on. Skipping to next request...\n", track.Name)
-						fmt.Println("")
-					} else {
-						requests = append(requests, track.Name)
-					}
-				} else if requestCheckErr == sql.ErrNoRows {
+				if requestCheckErr == sql.ErrNoRows {
 					fmt.Printf("Song %s was not found in the database, meaning it is not one of the songs that the band is able to perform.\nSkipping to next request...\n", track.Name)
 					fmt.Println("")
-				} else {
+					continue
+				} else if requestCheckErr != nil {
 					fmt.Println("Unable to find track due to error, skipping to next request...")
 					fmt.Println("")
+					continue
 				}
+				if explicitOffBool && track.Explicit {
+					fmt.Printf("Request %s has explicit lyrics, and the 'No Explicit Lyrics' rule has been turned on, skipping to next request...\n", track.Name)
+					fmt.Println("")
+					continue
+				}
+				comboParams := database.GetSingerCombosParams{
+					Song:    track.Name,
+					Artist:  track.Artist,
+					Column3: capitalizedSingerList,
+				}
+				combos, combosErr := dbQueries.GetSingerCombos(context.Background(), comboParams)
+				if combosErr != nil {
+					fmt.Printf("unable to get singer/key combo for %s: %v, skipping to next request...\n", track.Name, combosErr)
+					fmt.Println("")
+					continue
+				}
+				atLeastOneSinger := false
+				for _, combo := range combos {
+					for _, singer := range capitalizedSingerList {
+						if combo.Singer == singer {
+							atLeastOneSinger = true
+							break
+						}
+					}
+					if atLeastOneSinger {
+						break
+					}
+				}
+				if !atLeastOneSinger {
+					fmt.Printf("No valid singers found for track %s, skipping...\n", track.Name)
+					fmt.Println("")
+					continue
+				}
+				requests = append(requests, track.Name)
 			}
-			break
 		}
+		break
 	}
 
 	//Do Not Plays
@@ -170,18 +271,18 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 			extractor := extract.NewExtractor(config)
 
 			if err := extractor.ExtractMetaDataSpotdl(); err != nil {
-				return nil, nil, 0, false, err
+				return nil, nil, nil, 0, 0, false, err
 			}
 
 			tracks, err := extractor.ReadSpotdlData()
 			if err != nil {
-				return nil, nil, 0, false, err
+				return nil, nil, nil, 0, 0, false, err
 			}
 			for _, track := range *tracks {
 				doNotPlays = append(doNotPlays, track.Name)
 			}
-			break
 		}
+		break
 	}
 
 	//Crosscheck Requests and DNPs
@@ -190,53 +291,62 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 	contradictionsLength := len(contradictions)
 	fmt.Printf("Contradicitons found: %d\n", contradictionsLength)
 	for i, contradiction := range contradictions {
-		fmt.Printf("%v: %s is in both the 'Requests' and the 'Do Not Play' playlists\n", i+1, contradiction)
-		fmt.Println("Please type 'Y' to include it as a request or 'N' to add it as a 'Do Not Play':")
-		includeRsp, _ := reader.ReadString('\n')
-		includeRsp = strings.TrimSpace(includeRsp)
-		includeRsp = strings.ToLower(includeRsp)
-		if includeRsp == "y" {
-			fmt.Println("Song will be included in 'Requests' list")
-			fmt.Println("")
-			removeFromList(contradiction, &doNotPlays)
-		} else if includeRsp == "n" {
-			fmt.Println("Song will be included in 'Do Not Play' list")
-			fmt.Println("")
-			removeFromList(contradiction, &requests)
-		} else {
-			fmt.Println("Invalid response, please try again")
-			continue
+		for {
+			fmt.Printf("%v: %s is in both the 'Requests' and the 'Do Not Play' playlists\n", i+1, contradiction)
+			fmt.Print("Please type 'Y' to include it as a request or 'N' to add it as a 'Do Not Play': ")
+			includeRsp, _ := reader.ReadString('\n')
+			includeRsp = strings.TrimSpace(includeRsp)
+			includeRsp = strings.ToLower(includeRsp)
+			if includeRsp == "y" {
+				fmt.Println("Song will be included in 'Requests' list")
+				fmt.Println("")
+				removeFromList(contradiction, &doNotPlays)
+				break
+			} else if includeRsp == "n" {
+				fmt.Println("Song will be included in 'Do Not Play' list")
+				fmt.Println("")
+				removeFromList(contradiction, &requests)
+				break
+			} else {
+				fmt.Println("Invalid response, please try again")
+				continue
+			}
 		}
-		fmt.Println("")
 	}
+	numRequests := len(requests)
 
 	//Confirmation
 	fmt.Println("You have selected the following parameters:")
-	fmt.Println("")
 	fmt.Printf("Duration: %d minutes\n", duration)
 	fmt.Println("")
-	fmt.Println("Requests:")
+	fmt.Println("Singers:")
+	for _, singer := range singerList {
+		fmt.Printf(" - %s\n", Capitalize(singer))
+	}
+	fmt.Println("")
+	fmt.Print("Requests: ")
 	if len(requests) == 0 {
 		fmt.Println("None")
 		fmt.Println("")
 	} else {
-		for _, song := range requests {
-			fmt.Println(song)
+		fmt.Println("")
+		for i, song := range requests {
+			fmt.Printf("%d - %s\n", i+1, song)
 		}
 		fmt.Println("")
 	}
-	fmt.Println("Do Not Plays:")
+	fmt.Print("Do Not Plays: ")
 	if len(doNotPlays) == 0 {
 		fmt.Println("None")
-		fmt.Println("")
 	} else {
-		for _, dnp := range doNotPlays {
-			fmt.Println(dnp)
-		}
 		fmt.Println("")
+		for i, dnp := range doNotPlays {
+			fmt.Printf("%d - %s\n", i+1, dnp)
+		}
 	}
-	fmt.Println("Explicit lyrics allowed?:")
-	if explicitBool {
+	fmt.Println("")
+	fmt.Print("Explicit lyrics allowed?: ")
+	if !explicitOffBool {
 		fmt.Println("Yes")
 	} else {
 		fmt.Println("No")
@@ -244,26 +354,29 @@ func RunBuildQuestions(db *sql.DB) (requestsList, dnpList []string, duration int
 	fmt.Println("")
 	for {
 		fmt.Println("If this information is correct, please type 'Y' to begin the setlist building process.")
-		fmt.Println("You also type 'restart' to start over from the beginning")
+		fmt.Print("You also type 'restart' to start over from the beginning: ")
 		confirmation, _ := reader.ReadString('\n')
 		confirmation = strings.TrimSpace(confirmation)
 		confirmation = strings.ToLower(confirmation)
+		fmt.Println("")
 		if confirmation == "y" {
+			//check if 2 singers can have balanced setlist or not
 			fmt.Println("Beginning build...")
-			return requests, doNotPlays, duration, explicitBool, nil
+			return requests, doNotPlays, capitalizedSingerList, duration, int32(numRequests), explicitOffBool, nil
 		} else if confirmation == "restart" {
 			fmt.Println("Restarting...")
 			os.RemoveAll(requestsTempDir)
 			os.RemoveAll(dnpTempDir)
 			return RunBuildQuestions(db)
 		} else {
-			fmt.Println("Invalid response, please try again")
+			fmt.Println("Invalid response, please try again.")
 			continue
 		}
 	}
 }
 
-func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explicit bool) error {
+func RunBuild(db *sql.DB, requestsList, dnpList, singers []string, duration, requestNum int32, explicit bool) error {
+	dbQueries := database.New(db)
 	requests := make([]string, len(requestsList))
 	copy(requests, requestsList)
 	setlist := [][]string{}
@@ -271,7 +384,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 	setLengths := []int32{}
 	countTillRequest := 0
 	requestCount := 0
-
+	balanced := true
 	if duration > 90 && duration <= 150 {
 		setLengths = append(setLengths, duration/2-10, duration/2-10)
 	} else if duration > 150 && duration <= 180 {
@@ -280,20 +393,28 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		setLengths = append(setLengths, duration)
 	}
 
-	fmt.Println("Set Lengths:")
-	for _, setLength := range setLengths {
-		fmt.Printf("%d minutes\n", setLength)
+	durationChecks, durationChecksErr := dbQueries.SumDurationForSinger(context.Background(), singers)
+	if durationChecksErr != nil {
+		fmt.Printf("Unable to check total durations for singers: %v\n\n", durationChecksErr)
+	}
+	if len(durationChecks) == 2 && (durationChecks[1].TotalDuration)/60 < (int64(duration)/3) {
+		balanced = false
+		fmt.Println("")
+		fmt.Println("Singers chosen may not be able to complete entire set balanced, repeat singer rule will be ignored")
+		fmt.Println("")
 	}
 
-	fmt.Println("Fetching tracks from DB...")
+	fmt.Println("Set Lengths:")
+	for i, setLength := range setLengths {
+		fmt.Printf("Set %d - %d minutes\n", i+1, setLength)
+	}
 	fmt.Println("")
-	dbQueries := database.New(db)
+	fmt.Println("Fetching tracks from DB...")
 	workingTracks, tracksErr := dbQueries.GetAllTracks(context.Background())
 	if tracksErr != nil {
 		return fmt.Errorf("unable to get tracks in database: %v", tracksErr)
 	}
-	fmt.Println("Tracks fetched")
-	fmt.Println("")
+	fmt.Println("✅ Tracks fetched.")
 	for _, workingTrack := range workingTracks {
 		workingParams := database.AddTrackToWorkingParams{
 			Name:              workingTrack.Name,
@@ -307,14 +428,14 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		}
 		addErr := dbQueries.AddTrackToWorking(context.Background(), workingParams)
 		if addErr != nil {
-			err := RunWorkClear(db)
+			err := RunClear(db, "working")
 			if err != nil {
 				return err
 			}
 			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
 	}
-	fmt.Println("Tracks added to working table")
+	fmt.Println("✅ Tracks added to working table.")
 	fmt.Println("")
 	for _, dnp := range dnpList {
 		_, workingErr := dbQueries.GetWorking(context.Background(), dnp)
@@ -328,7 +449,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 			fmt.Println("")
 		}
 	}
-	fmt.Println("DNP's remove from working table")
+	fmt.Println("✅ DNP's remove from working table.")
 	for _, set := range setLengths {
 		workTracks, workTracksErr := dbQueries.GetAllWorking(context.Background())
 		if workTracksErr != nil {
@@ -343,60 +464,70 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		totalDuration := 0
 		margin := 180
 		target := int(set) * 60
-		fmt.Println("starting progress loop")
-		for totalDuration < target-margin {
-			maxStaleRounds := 5
-			staleRounds := 0
+		maxStaleRounds := 5
+		staleRounds := 0
+		for totalDuration < target-margin && staleRounds < maxStaleRounds {
 			loopMadeProgress := false
-			for staleRounds < maxStaleRounds {
-				if totalDuration >= target-margin {
-					fmt.Println("hit target margin")
-					break
-				}
-				if len(workTracks) == 0 {
-					log.Fatalf("working tracks is empty")
-				}
-				rand.Shuffle(len(workTracks), func(i, j int) {
-					workTracks[i], workTracks[j] = workTracks[j], workTracks[i]
-				})
-
-				if countTillRequest < 3 || len(requests) == 0 {
-					for i := 0; i < len(workTracks); i++ {
-						track := workTracks[i]
-						if tryAddTrackToSet(db, track, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger) {
-							countTillRequest += 1
-							loopMadeProgress = true
-							staleRounds = 0
-							break
-						} else {
-							fmt.Println("Did not pass validation check, trying next random song")
+			if totalDuration >= target-margin {
+				fmt.Println("hit target margin")
+				break
+			}
+			if len(workTracks) == 0 {
+				log.Fatalf("working tracks is empty")
+			}
+			rand.Shuffle(len(workTracks), func(i, j int) {
+				workTracks[i], workTracks[j] = workTracks[j], workTracks[i]
+			})
+			if countTillRequest < 3 || len(requests) == 0 {
+				for i := 0; i < len(workTracks); i++ {
+					track := workTracks[i]
+					if tryAddTrackToSet(db, track, singers, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger, balanced) {
+						countTillRequest++
+						loopMadeProgress = true
+						for _, request := range requests {
+							if track.Name == request {
+								fmt.Println("✅ Request added")
+								requestCount++
+								countTillRequest = 0
+								break
+							}
 						}
-					}
-				} else {
-					for i := 0; i < len(requests); i++ {
-						request := requests[i]
-						track, getErr := dbQueries.GetWorking(context.Background(), request)
-						if getErr != nil {
-							fmt.Println("unable to get request track data, please ensure all requests are for songs included in the database")
-							continue
-						}
-						if tryAddTrackToSet(db, track, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger) {
-							fmt.Println("Request added")
-							countTillRequest = 0
-							loopMadeProgress = true
-							requestCount++
-							requests = removeIndex(requests, i)
-							break
-						} else {
-							fmt.Println("Did not pass validation check, trying next request")
-						}
+						break
 					}
 				}
-				if !loopMadeProgress {
-					staleRounds++
-				} else {
-					staleRounds = 0
+			} else {
+				requestAdded := false
+				for i := 0; i < len(requests); {
+					request := requests[i]
+					track, getErr := dbQueries.GetWorking(context.Background(), request)
+					if getErr != nil {
+						fmt.Printf("Request %s not found in DB (possibly due to being already added), removing from request list...\n", request)
+						requests = removeIndex(requests, i)
+						continue
+					}
+					if tryAddTrackToSet(db, track, singers, &singleSet, addedSongs, usedArtists, &lastKey, &secondToLastKey, &totalDuration, int(set*60), explicit, &lastSinger, &secondToLastSinger, balanced) {
+						requests = removeIndex(requests, i)
+						fmt.Println("✅ Request added")
+						countTillRequest = 0
+						loopMadeProgress = true
+						requestCount++
+						requestAdded = true
+						break
+					} else {
+						fmt.Printf("❌ Request %s failed validation at current position. Will try again later.\n", request)
+						i++
+					}
 				}
+				if !requestAdded && len(requests) > 0 {
+					fmt.Println("⚠️ No requests passed at this point. Keeping them for next opportunity.")
+				}
+			}
+			if loopMadeProgress {
+				staleRounds = 0
+			} else {
+				staleRounds++
+				countTillRequest = 0
+				fmt.Println("Failed to add any requests at this specific spot, will attempt in 3 more songs...")
 			}
 		}
 		if totalDuration < target {
@@ -404,12 +535,12 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 			underfillMinute := underfill / 60
 			underfillSecond := underfill % 60
 			fmt.Println("")
-			fmt.Printf("Warning: Set %d is underfilled by %d minutes and %d seconds, may be impossible under current rules\n", len(setlist)+1, underfillMinute, underfillSecond)
+			fmt.Printf("Warning: Set %d is underfilled by %d minutes and %d seconds.\n", len(setlist)+1, underfillMinute, underfillSecond)
 			fmt.Println("")
 		}
 		setlist = append(setlist, singleSet)
 	}
-	fmt.Println("Setlist complete, printing")
+	fmt.Println("Setlist complete, printing...")
 	fmt.Println("")
 	for i, set := range setlist {
 		fmt.Printf("Set %d:\n", (i + 1))
@@ -418,7 +549,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		}
 		fmt.Println("")
 	}
-	fmt.Printf("Requests Included: %d", requestCount)
+	fmt.Printf("Requests Included: %d/%d", requestCount, requestNum)
 	fmt.Println("")
 	if len(setlist) > 1 {
 		fmt.Println("Breaks between sets:")
@@ -429,7 +560,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 		}
 	}
 	fmt.Println("")
-	err := RunWorkClear(db)
+	err := RunClear(db, "working")
 	if err != nil {
 		return err
 	}
@@ -441,6 +572,7 @@ func RunBuild(db *sql.DB, requestsList, dnpList []string, duration int32, explic
 func tryAddTrackToSet(
 	db *sql.DB,
 	track database.Working,
+	singers []string,
 	singleSet *[]string,
 	addedSongs map[string]bool,
 	usedArtists map[string]bool,
@@ -451,6 +583,7 @@ func tryAddTrackToSet(
 	explicit bool,
 	lastSinger *string,
 	secondToLastSinger *string,
+	balanced bool,
 ) bool {
 	if usedArtists[track.Artist] {
 		fmt.Printf("Rejected %s: artist %s already used\n", track.Name, track.Artist)
@@ -465,30 +598,37 @@ func tryAddTrackToSet(
 		fmt.Printf("Rejected %s: would exceed maxDuration (%d + %d > %d)\n", track.Name, *totalDuration, track.DurationInSeconds, maxDuration+300)
 		return false
 	}
-	if !explicit && track.Explicit {
+	if explicit && track.Explicit {
 		fmt.Printf("Rejected %s: track has explicit lyrics\n", track.Name)
 		return false
 	}
 
 	dbQueries := database.New(db)
 	params := database.GetSingerCombosParams{
-		Song:   track.Name,
-		Artist: track.Artist,
+		Song:    track.Name,
+		Artist:  track.Artist,
+		Column3: singers,
 	}
 	combos, combosErr := dbQueries.GetSingerCombos(context.Background(), params)
 	if combosErr != nil {
-		fmt.Printf("unable to get singer/key combo for %s: %v", track.Name, combosErr)
+		fmt.Printf("unable to get singer/key combo for %s: %v.", track.Name, combosErr)
 		return false
 	}
 	for _, combo := range combos {
+		for _, singer := range singers {
+			if combo.Singer == singer {
+				fmt.Printf("Matched singer: %s - %s\n", singer, combo.Key)
+				break
+			}
+			continue
+		}
 		track.Singer = sql.NullString{String: combo.Singer, Valid: true}
 		track.SingerKey = sql.NullString{String: combo.Key, Valid: true}
 		if *lastKey != "" && track.SingerKey.String == *lastKey && track.SingerKey.String == *secondToLastKey {
 			fmt.Printf("Rejected %s: same key (%s) as last two tracks\n", track.Name, track.SingerKey.String)
 			continue
 		}
-
-		if *lastSinger != "" && track.Singer.String == *lastSinger && track.Singer.String == *secondToLastSinger {
+		if len(singers) != 1 && balanced && *lastSinger != "" && track.Singer.String == *lastSinger && track.Singer.String == *secondToLastSinger {
 			fmt.Printf("Rejected %s: same singer (%s) for last two tracks\n", track.Name, track.Singer.String)
 			continue
 		}
@@ -510,16 +650,13 @@ func tryAddTrackToSet(
 		*totalDuration += int(track.DurationInSeconds)
 		usedArtists[track.Artist] = true
 		addedSongs[track.Name] = true
-		trackInfo := track.Name
-		if track.SingerKey.String != track.OriginalKey {
-			trackInfo = track.Name + " (" + track.SingerKey.String + ")"
-		}
+		trackInfo := track.Name + " - " + track.Singer.String + " - " + track.SingerKey.String
 		*singleSet = append(*singleSet, trackInfo)
-		fmt.Printf("✅ Added track: %s by %s [%s, %ds]\n", track.Name, track.Artist, track.SingerKey.String, track.DurationInSeconds)
+		fmt.Printf("✅ Added track: %s by %s [%s]\n", track.Name, track.Artist, track.SingerKey.String)
 		dbQueries.RemoveFromWorking(context.Background(), track.Name)
 		return true
 	}
-	fmt.Printf("Rejected: unable to find singer/key combo for %s that does not violate conditions\n", track.Name)
+	fmt.Printf("Rejected: unable to find singer/key combo for %s that does not violate conditions.\n", track.Name)
 	return false
 }
 

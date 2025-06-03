@@ -171,22 +171,43 @@ func (q *Queries) CheckSingers(ctx context.Context, arg CheckSingersParams) (boo
 	return not_exists, err
 }
 
-const cleanupTracks = `-- name: CleanupTracks :exec
-DELETE FROM tracks WHERE tracks.original_key = ''
+const cleanSingers = `-- name: CleanSingers :exec
+DELETE FROM singers WHERE singer = ''
 `
 
-func (q *Queries) CleanupTracks(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupTracks)
+func (q *Queries) CleanSingers(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanSingers)
 	return err
 }
 
-const cleanupWorking = `-- name: CleanupWorking :exec
+const cleanTracks = `-- name: CleanTracks :exec
+DELETE FROM tracks WHERE tracks.original_key = ''
+`
+
+func (q *Queries) CleanTracks(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanTracks)
+	return err
+}
+
+const clearWorking = `-- name: ClearWorking :exec
 DELETE FROM working
 `
 
-func (q *Queries) CleanupWorking(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, cleanupWorking)
+func (q *Queries) ClearWorking(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearWorking)
 	return err
+}
+
+const countSingers = `-- name: CountSingers :one
+SELECT COUNT(DISTINCT singer)
+FROM singers
+`
+
+func (q *Queries) CountSingers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countSingers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createTrack = `-- name: CreateTrack :exec
@@ -317,12 +338,13 @@ func (q *Queries) GetAllWorking(ctx context.Context) ([]Working, error) {
 }
 
 const getSingerCombos = `-- name: GetSingerCombos :many
-SELECT singer, key from singers WHERE song = $1 and artist = $2
+SELECT singer, key from singers WHERE song = $1 and artist = $2 AND singer = ANY($3::text[])
 `
 
 type GetSingerCombosParams struct {
-	Song   string
-	Artist string
+	Song    string
+	Artist  string
+	Column3 []string
 }
 
 type GetSingerCombosRow struct {
@@ -331,7 +353,7 @@ type GetSingerCombosRow struct {
 }
 
 func (q *Queries) GetSingerCombos(ctx context.Context, arg GetSingerCombosParams) ([]GetSingerCombosRow, error) {
-	rows, err := q.db.QueryContext(ctx, getSingerCombos, arg.Song, arg.Artist)
+	rows, err := q.db.QueryContext(ctx, getSingerCombos, arg.Song, arg.Artist, pq.Array(arg.Column3))
 	if err != nil {
 		return nil, err
 	}
@@ -343,6 +365,33 @@ func (q *Queries) GetSingerCombos(ctx context.Context, arg GetSingerCombosParams
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSingers = `-- name: GetSingers :many
+SELECT singer FROM singers
+`
+
+func (q *Queries) GetSingers(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getSingers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var singer string
+		if err := rows.Scan(&singer); err != nil {
+			return nil, err
+		}
+		items = append(items, singer)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -492,4 +541,49 @@ DELETE FROM working WHERE working.name = $1
 func (q *Queries) RemoveFromWorking(ctx context.Context, name string) error {
 	_, err := q.db.ExecContext(ctx, removeFromWorking, name)
 	return err
+}
+
+const sumDurationForSinger = `-- name: SumDurationForSinger :many
+SELECT
+  s.singer,
+  SUM(t.duration_in_seconds) AS total_duration
+FROM
+  singers s
+JOIN
+  tracks t
+  ON s.song = t.name AND s.artist = t.artist
+WHERE
+  s.singer = ANY($1::text[])
+GROUP BY
+  s.singer
+ORDER BY
+  total_duration DESC
+`
+
+type SumDurationForSingerRow struct {
+	Singer        string
+	TotalDuration int64
+}
+
+func (q *Queries) SumDurationForSinger(ctx context.Context, dollar_1 []string) ([]SumDurationForSingerRow, error) {
+	rows, err := q.db.QueryContext(ctx, sumDurationForSinger, pq.Array(dollar_1))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SumDurationForSingerRow
+	for rows.Next() {
+		var i SumDurationForSingerRow
+		if err := rows.Scan(&i.Singer, &i.TotalDuration); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/rjfeeney/setlist_builder/internal/database"
 )
 
-func validateSinger(singerInput string) bool {
+func ValidateSinger(singerInput string) bool {
 	for _, name := range constants.ValidSingers {
 		if name == singerInput {
 			return true
@@ -40,6 +40,14 @@ func Capitalize(s string) string {
 	runes[0] = unicode.ToUpper(runes[0])
 	return string(runes)
 }
+func InvalidSingerMessage() {
+	fmt.Println("")
+	fmt.Println("Invalid singer, please choose a valid singer from the list:")
+	for _, singer := range constants.ValidSingers {
+		fmt.Print(singer + ", ")
+	}
+	fmt.Println("")
+}
 
 func RunAddSingers(db *sql.DB) error {
 	var nextTrack bool
@@ -51,7 +59,8 @@ func RunAddSingers(db *sql.DB) error {
 		log.Fatalf("failed to get tracks for database: %v\n", getTracksErr)
 	}
 	fmt.Println("")
-	for _, track := range tracks {
+	numberofTracks := len(tracks)
+	for i, track := range tracks {
 		checkParams := database.CheckSingersParams{
 			Song:   track.Name,
 			Artist: track.Artist,
@@ -60,7 +69,8 @@ func RunAddSingers(db *sql.DB) error {
 		if !check {
 			continue
 		}
-
+		fmt.Println("")
+		fmt.Printf("Track# %d/%d: %s - %s\n", i+1, numberofTracks, track.Name, track.Artist)
 		nextTrack = false
 
 		for !nextTrack {
@@ -75,7 +85,7 @@ func RunAddSingers(db *sql.DB) error {
 					nextTrack = true
 					break
 				}
-				if !validateSinger(singerInput) {
+				if !ValidateSinger(singerInput) {
 					fmt.Println("")
 					fmt.Println("Invalid singer, please choose a valid singer from the list:")
 					for _, singer := range constants.ValidSingers {
@@ -87,7 +97,7 @@ func RunAddSingers(db *sql.DB) error {
 				for {
 					singerInput = Capitalize(singerInput)
 					fmt.Println("")
-					fmt.Printf("Please enter the key that %s sings %s by %s in (leaving blank with keep the song in its original key of %s):", singerInput, track.Name, track.Artist, track.OriginalKey)
+					fmt.Printf("Please enter the key that %s sings %s by %s in (leaving blank will keep the song in its original key of %s):", singerInput, track.Name, track.Artist, track.OriginalKey)
 					keyInput, _ = reader.ReadString('\n')
 					keyInput = strings.TrimSpace(strings.ToLower(keyInput))
 					if keyInput == "" {
@@ -126,7 +136,7 @@ func RunAddSingers(db *sql.DB) error {
 				}
 				for {
 					fmt.Println("")
-					fmt.Println("Do you have additional singers to add? (Y/N)")
+					fmt.Print("Do you have additional singers to add? (Y/N): ")
 					additionalCheck, _ := reader.ReadString('\n')
 					additionalCheck = strings.TrimSpace(strings.ToLower(additionalCheck))
 					if additionalCheck == "y" {
@@ -145,5 +155,6 @@ func RunAddSingers(db *sql.DB) error {
 			}
 		}
 	}
+	fmt.Println("✅ Finished iterating through unassigned songs.")
 	return nil
 }

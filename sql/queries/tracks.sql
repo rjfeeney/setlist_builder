@@ -54,11 +54,27 @@ VALUES (
     $8
 );
 
+-- name: SumDurationForSinger :many
+SELECT
+  s.singer,
+  SUM(t.duration_in_seconds) AS total_duration
+FROM
+  singers s
+JOIN
+  tracks t
+  ON s.song = t.name AND s.artist = t.artist
+WHERE
+  s.singer = ANY($1::text[])
+GROUP BY
+  s.singer
+ORDER BY
+  total_duration DESC;
+
 -- name: GetTrackFromName :one
 SELECT * FROM tracks WHERE name ILIKE $1;
 
 -- name: GetSingerCombos :many
-SELECT singer, key from singers WHERE song = $1 and artist = $2;
+SELECT singer, key from singers WHERE song = $1 and artist = $2 AND singer = ANY($3::text[]);
 
 -- name: CheckSingers :one
 SELECT NOT EXISTS (
@@ -67,6 +83,14 @@ SELECT NOT EXISTS (
 
 -- name: CheckKeys :many
 SELECT name, artist FROM tracks WHERE original_key = '' OR original_key IS NULL;
+
+-- name: CountSingers :one
+SELECT COUNT(DISTINCT singer)
+FROM singers;
+
+-- name: GetSingers :many
+SELECT singer FROM singers;
+
 
 -- name: AddToSingers :exec
 INSERT INTO singers (song, artist, singer, key)
@@ -95,8 +119,11 @@ SELECT * FROM working;
 -- name: DeleteTrack :exec
 DELETE FROM tracks WHERE tracks.name = $1 AND tracks.artist = $2;
 
--- name: CleanupTracks :exec
+-- name: CleanTracks :exec
 DELETE FROM tracks WHERE tracks.original_key = '';
 
--- name: CleanupWorking :exec
+-- name: CleanSingers :exec
+DELETE FROM singers WHERE singer = '';
+
+-- name: ClearWorking :exec
 DELETE FROM working;
