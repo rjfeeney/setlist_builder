@@ -57,13 +57,13 @@ func main() {
 			log.Fatalf("list failed: %v", err)
 		}
 
-	case "trackclear":
+	case "reset":
 		if len(args) != 0 {
-			fmt.Println("No additional arguments needed for TrackClear, command will execute regardless")
+			fmt.Println("No additional arguments needed for Reset, command will execute regardless")
 		}
 		err := cli.RunReset(db)
 		if err != nil {
-			log.Fatalf("TrackClear failed: %v", err)
+			log.Fatalf("Reset failed: %v", err)
 		}
 
 	case "clear":
