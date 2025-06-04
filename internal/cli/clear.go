@@ -5,12 +5,24 @@ import (
 	"fmt"
 )
 
-func RunClear(db *sql.DB, table string) error {
+type ClearResult struct {
+	Success bool
+	Message string
+	Error   error
+}
+
+func RunClear(db *sql.DB, table string) ClearResult {
+	var result ClearResult
 	_, clearErr := db.Exec("DELETE FROM " + table)
 	if clearErr != nil {
-		return clearErr
+		result.Success = false
+		result.Message = ""
+		result.Error = clearErr
+		return result
 	}
-	table = Capitalize(table)
-	fmt.Printf("✅ %s table has been reset.\n", table)
-	return nil
+	fmt.Printf("%s table has been reset.\n", Capitalize(table))
+	result.Success = true
+	result.Message = fmt.Sprintf("%s table has been reset.", Capitalize(table))
+	result.Error = nil
+	return result
 }

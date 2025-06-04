@@ -18,7 +18,7 @@ func RunReset(db *sql.DB) error {
 	fmt.Println("✅ Working table has been reset.")
 	_, singersErr := db.Exec("DELETE FROM singers")
 	if singersErr != nil {
-		return workingErr
+		return singersErr
 	}
 	fmt.Println("✅ Singers table has been reset.")
 	fmt.Println("✅ Database has been reset.")
