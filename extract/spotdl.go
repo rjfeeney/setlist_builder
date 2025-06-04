@@ -109,13 +109,17 @@ func (e *Extractor) ExtractMetaDataSpotdl() error {
 	return nil
 }
 
-func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
+func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) (int, int, int, []string, error) {
 	var wg sync.WaitGroup
 	errorsChan := make(chan error, len(*tracks))
 
-	semaphore := make(chan struct{}, 9)
+	var mu sync.Mutex
 	downloadFail := 0
 	keyFail := 0
+	songsAdded := 0
+	var failedSongs []string
+
+	semaphore := make(chan struct{}, 9)
 	for _, track := range *tracks {
 		params := database.GetTrackParams{
 			Name:   track.Name,
@@ -131,16 +135,22 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 				defer func() { <-semaphore }()
 				err := e.DownloadAudioSpotdl(track.Artist, track.Name)
 				if err != nil {
+					mu.Lock()
+					downloadFail++
+					failedSongs = append(failedSongs, track.Name+" - "+track.Artist)
+					mu.Unlock()
 					errorsChan <- fmt.Errorf("failed to download %s - %s: %v", track.Artist, track.Name, err)
-					downloadFail += 1
 				}
 				mp3Folder := track.Artist + " " + track.Name + ".mp3"
 				mp3File := track.Artist + " - " + track.Name + ".mp3"
 				outputPath := filepath.Join(e.Config.TempDir, "audio", mp3Folder, mp3File)
 				key, bpm, essentiaErr := ExtractTempoAndKey(outputPath)
 				if essentiaErr != nil {
+					mu.Lock()
+					keyFail++
+					mu.Unlock()
 					fmt.Printf("failed to get key/bpm for %s - %s: %v\n", track.Artist, track.Name, essentiaErr)
-					keyFail += 1
+
 				}
 				trackParams := database.CreateTrackParams{
 					Name:              track.Name,
@@ -163,6 +173,10 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 					if deleteErr != nil {
 						fmt.Printf("unable to delete track from database: %v\n", deleteErr)
 					}
+				} else {
+					mu.Lock()
+					songsAdded++
+					mu.Unlock()
 				}
 			}(track)
 		} else if getErr == nil {
@@ -176,13 +190,9 @@ func DownloadAllTracks(e *Extractor, tracks *[]SpotdlData) error {
 
 	wg.Wait()
 	close(errorsChan)
-
-	if len(errorsChan) > 0 {
-		return fmt.Errorf("some downloads failed: %v", <-errorsChan)
-	}
 	fmt.Printf("Total download fails: %d\n", downloadFail)
 	fmt.Printf("Total key/bpm fails: %d. Try running the clean command and retrying the setlist to attempt again\n", keyFail)
-	return nil
+	return songsAdded, downloadFail, keyFail, failedSongs, nil
 }
 
 func (e *Extractor) DownloadAudioSpotdl(artist, trackName string) error {

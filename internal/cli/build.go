@@ -16,10 +16,10 @@ import (
 )
 
 func RunBuildQuestions(db *sql.DB) (requestsList, dnpList, singers []string, duration, requestNum int32, explicit bool, err error) {
-	clearErr := RunClear(db, "working")
+	clear := RunClear(db, "working")
 	fmt.Println("")
-	if clearErr != nil {
-		log.Fatalf("failed to clear working table at start of build: %v", clearErr)
+	if clear.Error != nil {
+		log.Fatalf("failed to clear working table at start of build: %v", clear.Error)
 	}
 
 	dbQueries := database.New(db)
@@ -428,9 +428,9 @@ func RunBuild(db *sql.DB, requestsList, dnpList, singers []string, duration, req
 		}
 		addErr := dbQueries.AddTrackToWorking(context.Background(), workingParams)
 		if addErr != nil {
-			err := RunClear(db, "working")
-			if err != nil {
-				return err
+			clear := RunClear(db, "working")
+			if clear.Error != nil {
+				return clear.Error
 			}
 			return fmt.Errorf("error adding track to working table: %v", addErr)
 		}
@@ -560,9 +560,9 @@ func RunBuild(db *sql.DB, requestsList, dnpList, singers []string, duration, req
 		}
 	}
 	fmt.Println("")
-	err := RunClear(db, "working")
-	if err != nil {
-		return err
+	clear := RunClear(db, "working")
+	if clear.Error != nil {
+		return clear.Error
 	}
 	fmt.Println("")
 	fmt.Println("Setlist successfully built! Closing app...")

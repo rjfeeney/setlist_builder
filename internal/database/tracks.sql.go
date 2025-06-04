@@ -263,6 +263,37 @@ func (q *Queries) DeleteTrack(ctx context.Context, arg DeleteTrackParams) error 
 	return err
 }
 
+const getAllTables = `-- name: GetAllTables :many
+SELECT table_name as tablename
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+  AND table_type = 'BASE TABLE'
+ORDER BY table_name
+`
+
+func (q *Queries) GetAllTables(ctx context.Context) ([]interface{}, error) {
+	rows, err := q.db.QueryContext(ctx, getAllTables)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []interface{}
+	for rows.Next() {
+		var tablename interface{}
+		if err := rows.Scan(&tablename); err != nil {
+			return nil, err
+		}
+		items = append(items, tablename)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAllTracks = `-- name: GetAllTracks :many
 SELECT name, artist, genre, duration_in_seconds, year, explicit, bpm, original_key FROM tracks
 `
