@@ -11,13 +11,27 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./demo-data.sql:/docker-entrypoint-initdb.d/02-demo-data.sql
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U setlist_user -d setlist_builder"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  setlist-builder:
+    build: .
+    container_name: setlist_cli
+    environment:
+      DATABASE_URL: postgres://setlist_user:setlist_pass@postgres:5432/setlist_builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./output:/app/output
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:
