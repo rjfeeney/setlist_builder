@@ -11,43 +11,45 @@ I especially wanted the final product to be something that could be used by the 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Go 1.19 or higher
-- Python 3.7 or higher (for API support)
 - Docker & Docker Compose
-- pip (Python package manager)
+- Git
 
 ### Steps
 
+## 1. Clone the repository
 ```bash
-# 1. Clone the repository
 git clone https://github.com/rjfeeney/setlist_builder.git
 cd setlist_builder
-
-# 2. Create your environment variables file
-cp .env.example .env
-# Then edit .env and enter your Spotify API credentials
-
-# 3. Start the PostgreSQL sample database
-docker-compose up -d
-
-# 4. Install Python dependencies
-pip install -r requirements.txt
-
-# 5. Run the CLI with sample data
-go run main.go build --sample
-
-# 6. Explore available commands
-go run main.go --help
 ```
 
-### 🎵 Spotify API Setup
+## 2. Create your environment variables file
+```bash
+cp .env.example .env
+```
+
+## 3. Obtain Spotify for Devs Credentials
 To use the Spotify features, you’ll need your own developer credentials:
 
 1. Visit https://developer.spotify.com/dashboard  
 2. Create an app and copy your **Client ID** and **Client Secret**  
 3. Paste them into your `.env` file like so:
 
-```env
+```bash
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
+```
+
+## 4.  Start the PostgreSQL sample database
+```bash
+docker-compose up -d
+```
+
+## 5. Run the CLI with sample data
+```bash
+docker-compose exec setlist-builder ./setlist build
+```
+
+## 6. Explore available commands
+```bash
+./setlist help
 ```
