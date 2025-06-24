@@ -32,11 +32,12 @@ To use the Spotify features, you’ll need your own developer credentials:
 
 1. Visit https://developer.spotify.com/dashboard  
 2. Create an app and copy your **Client ID** and **Client Secret**  
-3. Paste them into your `.env` file like so:
+3. Paste them, as well as the database URL into your `.env` file like so:
 
 ```bash
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
+DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmode=disable"
 ```
 
 ## 4.  Start the PostgreSQL sample database
@@ -46,7 +47,7 @@ docker-compose up -d
 
 ## 5. Run the CLI with sample data
 ```bash
-docker-compose exec setlist-builder ./setlist build
+./setlist build
 ```
 
 ## 6. Explore available commands
