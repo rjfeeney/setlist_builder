@@ -12,7 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./demo-data.sql:/docker-entrypoint-initdb.d/02-demo-data.sql
+      - ./demo_data.sql:/docker-entrypoint-initdb.d/02-demo-data.sql
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U setlist_user -d setlist_builder"]
