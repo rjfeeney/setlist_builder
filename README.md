@@ -104,3 +104,49 @@ All commands must begin with `./setlist` followed by the CLI command:
 
 **Help**
 - Lists all available commands and their descriptions.
+
+
+## Contributing
+
+### Clone the repo
+```bash
+git clone https://github.com/rjfeeney/setlist_builder
+cd setlist_builder
+```
+
+### Create your environment variables file
+```bash
+cp .env.example .env
+```
+
+### Obtain Spotify for Devs Credentials
+To use the Spotify features, you’ll need your own developer credentials:
+
+1. Visit https://developer.spotify.com/dashboard  
+2. Create an app and copy your **Client ID** and **Client Secret**  
+3. Paste them, as well as the database URL into your `.env` file like so:
+
+```bash
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmode=disable"
+```
+
+### Build the project
+```bash
+docker-compose up -d
+```
+
+### Making changes
+1. Create a feature branch from `main`
+2. Make your changes
+3. Test locally to ensure everything works
+4. Commit with a clear, descriptive message
+5. Push and open a pull request
+
+### Testing changes
+This project currently uses manual testing. After making changes, test your modifications by running the application locally and verifying the functionality works as expected.
+
+### Submit a pull request
+If you'd like to contribute, please fork the repository and open a pull request to the `main` branch.
+
