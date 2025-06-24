@@ -8,7 +8,7 @@ As a performing musician myself, I have spent many hours crafting setlists by ha
 
 I especially wanted the final product to be something that could be used by the average musician, whether they understood coding or not. To that end, I sought out to make a user-friendly setlist builder that could be used by the co-founder of my wedding band company (who has no coding experience whatsoever).
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
@@ -54,3 +54,53 @@ docker-compose up -d
 ```bash
 ./setlist help
 ```
+
+## Usage
+
+### Command Format
+All commands must begin with `./setlist` followed by the CLI command:
+
+```bash
+./setlist [command] [required-parameter] {optional-parameter}
+```
+
+### Command List
+
+**Extract [Spotify Playlist URL]**
+- Extracts metadata from all tracks in a Spotify playlist and stores it in the database. Songs already in the database will be skipped over. If songs fail to be added for whatever reason, try running the clean function (detailed below) and then rerunning the extract command. Note that analysis of metadata is not guaranteed to be 100% accurate.
+
+**List**
+- Lists all songs currently in the tracks table in the database.
+
+**Singers**
+- Searches through all tracks in the singers table and prompts you to enter singer and key info for any songs with no singer listed.
+- Future improvements will add in the feature to access songs that already have singers and keys.
+
+**Keys {missing}**
+- Searches for tracks in the tracks table and prompts you to enter original key info.
+- Including 'missing' in the command will iterate through all tracks in the tracks table with missing original keys.
+- Otherwise, you will be prompted to enter a song title to look up. Note that spelling must be exact (but it is not case sensitive).
+
+**Clean [table]**
+- Removes any tracks from the database that are missing info (usually key and bpm).
+- Use this before rerunning the extract command for any tracks that didn't make it on the first try.
+
+**Build**
+- Begins the setlist building process, starting with a questions about set length, requests, and 'Do Not Plays'.
+- Upon successful creation, the setlist will print to your terminal.
+
+**Database**
+- Allows for manual access to the database to make changes as needed.
+- This is only advised to those who are comfortable writing SQL commands.
+- You will be asked to confirm direct database access before connecting.
+
+**Clear [table]**
+- Clears specified table from the database.
+- Use this if you need to reset singers, tracks, or the working table.
+
+**Reset**
+- Clears the entire database of all tracks.
+- Note that you should only do this if the data has somehow become corrupted or unuseable, as extracting new songs is the lengthiest part of the process.
+
+**Help**
+- Lists all available commands and their descriptions.
