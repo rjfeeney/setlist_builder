@@ -6,7 +6,7 @@ docker build --build-arg GOOS=windows --build-arg GOARCH=amd64 -f Dockerfile.bui
 $containerId = docker create setlist_builder_build_temp
 $sourcePath = "/app/output/setlist_builder"
 $destinationPath = "$outputPath\setlist.exe"
-docker cp $containerId:$sourcePath $destinationPath
+docker cp "${containerId}:${sourcePath}" $destinationPath
 docker rm $containerId
 Write-Host "Build complete! The binary is at $destinationPath"
 
