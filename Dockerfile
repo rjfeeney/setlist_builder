@@ -1,12 +1,6 @@
-FROM golang:1.24-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN apk add --no-cache build-base
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o setlist_builder .
-
-FROM gcr.io/distroless/static-debian11
-WORKDIR /app
-COPY --from=builder /app/setlist_builder .
-CMD ["./setlist_builder"]
+$outputPath = "output"
+if (-not (Test-Path $outputPath)) {
+    New-Item -ItemType Directory -Path $outputPath | Out-Null
+}
+docker build -t setlist_builder_build -f Dockerfile.build .
+docker run --rm -v "${PWD}\$outputPath:/app/output" setlist_builder_build go build -o /app/output/setlist.exe
