@@ -1,0 +1,8 @@
+output
+.git
+.gitignore
+*.md
+*.ps1
+*.sh
+Dockerfile.build
+README.md
