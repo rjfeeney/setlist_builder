@@ -24,7 +24,7 @@ cd setlist_builder
 
 ## 2. Create your environment variables file
 ```bash
-cp .env.example .env
+cp .env.sample .env
 ```
 
 ## 3. Obtain Spotify for Devs Credentials
