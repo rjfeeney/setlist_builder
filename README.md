@@ -47,21 +47,24 @@ docker-compose up -d
 
 ## 5. Run the CLI with sample data
 ```bash
-./setlist build
+./setlist build    # macOS/Linux
+.\setlist build    # Windows
 ```
 
 ## 6. Explore available commands
 ```bash
-./setlist help
+./setlist help    # macOS/Linux
+.\setlist help    # Windows
 ```
 
 ## Usage
 
 ### Command Format
-All commands must begin with `./setlist` followed by the CLI command:
+All commands must begin with `./setlist` (macOS/Linux) or `.\setlist` (Windows followed by the CLI command:
 
 ```bash
-./setlist [command] [required-parameter] {optional-parameter}
+./setlist [command] [required-parameter] {optional-parameter}    # macOS/Linux
+.\setlist [command] [required-parameter] {optional-parameter}    # Windows
 ```
 
 ### Command List
