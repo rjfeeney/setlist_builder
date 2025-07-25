@@ -8,7 +8,7 @@ if (-not (Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir | Out-Null
 }
 
-docker build -f Dockerfile.build -t $imageName .
+docker build --build-arg GOOS=windows --build-arg GOARCH=amd64 -f Dockerfile.build -t $imageName .
 
 $containerId = docker create --name $containerName $imageName
 
