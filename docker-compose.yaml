@@ -5,7 +5,7 @@ services:
     image: postgres:15
     container_name: setlist_db
     environment:
-      POSTGRES_DB: setlist_builder
+      POSTGRES_DB: setlist-builder
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
