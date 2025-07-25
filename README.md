@@ -23,9 +23,13 @@ cd setlist_builder
 ```
 
 ## 2. Create your environment variables file
+* On **macOS/Linux:**
 ```bash
-cp .env.sample .env           # macOS/Linux
-Copy-Item .env.sample .env    # Windows
+cp .env.sample .env
+```
+* On **Windows (Powershell):**
+```bash
+Copy-Item .env.sample .env
 ```
 
 ## 3. Obtain Spotify for Devs Credentials
