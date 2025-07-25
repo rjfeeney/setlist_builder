@@ -2,7 +2,7 @@ $outputDir = Join-Path -Path (Get-Location) -ChildPath "output"
 $binaryName = "setlist.exe"
 $imageName = "setlist_builder_build_temp"
 $containerName = "setlist_builder_build_container"
-$binaryPathInContainer = "/app/output/setlist_builder"
+$binaryPathInContainer = "/app/setlist_builder"
 
 if (-not (Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir | Out-Null
@@ -17,8 +17,8 @@ if (-not $containerId) {
     exit 1
 }
 
-docker cp "${containerName}:$binaryPathInContainer" (Join-Path $outputDir $binaryName)
+docker cp "$containerName`:$binaryPathInContainer" (Join-Path $outputDir $binaryName)
 
 docker rm $containerName | Out-Null
 
-Write-Host "Build complete! The binary is at $outputDir\$binaryName"
+Write-Host "✅ Build complete! The binary is at $outputDir\$binaryName"
