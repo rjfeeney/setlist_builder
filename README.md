@@ -11,8 +11,14 @@ I especially wanted the final product to be something that could be used by the 
 ## Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose
-- Git
+- **Go 1.24 or higher**  
+  You must have Go installed on your system to build and run the CLI locally.  
+
+- **Docker & Docker Compose** 
+  Used to run the PostgreSQL database container.
+
+- **Git**  
+  For cloning the repository.
 
 ### Steps
 
@@ -51,41 +57,27 @@ docker-compose up -d
 ```
 
 ## 5. Build the CLI binary
-Run the appropriate build script for your OS:
-* On **macOS/Linux:**
 ```bash
-chmod +x build.sh
-./build.sh
-```
-* On **Windows (Powershell):**
-```bash
-.\build.ps1
-```
-This will build the binary inside Docker and place it in the ./output directory. It is recommended that you operate from within the output directory to reduce the amount of typing needed to execute commands:
-```bash
-cd output
+go build -o setlist
 ```
 
 ## 6. Run the CLI with sample data
 ```bash
-./setlist build    # macOS/Linux
-.\setlist build    # Windows
+./setlist build
 ```
 
 ## 7. Explore available commands
 ```bash
-./setlist help    # macOS/Linux
-.\setlist help    # Windows
+./setlist help
 ```
 
 ## Usage
 
 ### Command Format
-From within the output directory, all commands must begin with `./setlist` (macOS/Linux) or `.\setlist` (Windows) followed by the CLI command:
+All commands must begin with `./setlist` followed by the CLI command:
 
 ```bash
-./setlist [command] [required-parameter] {optional-parameter}    # macOS/Linux
-.\setlist [command] [required-parameter] {optional-parameter}    # Windows
+./setlist [command] [required-parameter] {optional-parameter}
 ```
 
 ### Command List
