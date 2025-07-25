@@ -54,7 +54,7 @@ chmod +x build.sh
 ./build.sh
 ```
 * On **Windows (Powershell):**
-* ```bash
+```bash
 .\build.ps1
 ```
 This will build the binary inside Docker and place it in the ./output directory. It is recommended that you operate from within the output directory to reduce the amount of typing needed to execute commands:
