@@ -45,22 +45,32 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmod
 docker-compose up -d
 ```
 
-## 5. Build the CLI binary
+## 5. Build the CLI binary (Cross-Platform)
+Run the appropriate build script for your OS:
+* On **macOS/Linux:**
 ```bash
-./build.sh     # macOS/Linux
-.\build.ps1    # Windows
+chmod +x build.sh
+./build.sh
+```
+* On **Windows (Powershell):**
+* ```bash
+.\build.ps1
+```
+This will build the binary inside Docker and place it in the ./output directory. It is recommended that you operate from within the output directory to reduce the amount of typing needed to execute commands:
+```bash
+cd output
 ```
 
 ## 6. Run the CLI with sample data
 ```bash
-./output/setlist build    # macOS/Linux
-.\output\setlist build    # Windows
+./setlist build    # macOS/Linux
+.\setlist build    # Windows
 ```
 
 ## 7. Explore available commands
 ```bash
-./output/setlist help    # macOS/Linux
-.\output\setlist help    # Windows
+./setlist help    # macOS/Linux
+.\setlist help    # Windows
 ```
 
 ## Usage
