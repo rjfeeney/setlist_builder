@@ -24,7 +24,8 @@ cd setlist_builder
 
 ## 2. Create your environment variables file
 ```bash
-cp .env.sample .env
+cp .env.sample .env           # macOS/Linux
+Copy-Item .env.sample .env    # Windows
 ```
 
 ## 3. Obtain Spotify for Devs Credentials
@@ -45,7 +46,7 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmod
 docker-compose up -d
 ```
 
-## 5. Build the CLI binary (Cross-Platform)
+## 5. Build the CLI binary
 Run the appropriate build script for your OS:
 * On **macOS/Linux:**
 ```bash
@@ -76,7 +77,7 @@ cd output
 ## Usage
 
 ### Command Format
-All commands must begin with `./setlist` (macOS/Linux) or `.\setlist` (Windows followed by the CLI command:
+From within the output directory, all commands must begin with `./setlist` (macOS/Linux) or `.\setlist` (Windows) followed by the CLI command:
 
 ```bash
 ./setlist [command] [required-parameter] {optional-parameter}    # macOS/Linux
