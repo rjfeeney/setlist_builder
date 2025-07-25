@@ -17,9 +17,8 @@ if (-not $containerId) {
     exit 1
 }
 
-docker cp "$containerName:$binaryPathInContainer" (Join-Path $outputDir $binaryName)
+docker cp "${containerName}:$binaryPathInContainer" (Join-Path $outputDir $binaryName)
 
 docker rm $containerName | Out-Null
 
 Write-Host "Build complete! The binary is at $outputDir\$binaryName"
-
