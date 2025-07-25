@@ -1,17 +1,10 @@
 #!/bin/bash
 set -e
-mkdir -p output
-UNAME=$(uname | tr '[:upper:]' '[:lower:]')
-if [[ "$UNAME" == "darwin" ]]; then
-  GOOS="darwin"
-elif [[ "$UNAME" == "linux" ]]; then
-  GOOS="linux"
-else
-  echo "Unsupported OS: $UNAME"
-  exit 1
-fi
-GOARCH="amd64"
-echo "Building for OS=$GOOS ARCH=$GOARCH"
-docker build --build-arg GOOS=$GOOS --build-arg GOARCH=$GOARCH -f Dockerfile.build -t setlist-builder-builder .
-docker run --rm -v "$PWD/output":/app/output setlist-builder-builder
-echo "Build complete. Binary is in ./output/"
+outputPath="./output"
+mkdir -p "$outputPath"
+docker build --build-arg GOOS=linux --build-arg GOARCH=amd64 -f Dockerfile.build -t setlist_builder_build_temp .
+containerId=$(docker create setlist_builder_build_temp)
+docker cp "$containerId:/app/output/setlist_builder" "$outputPath/setlist"
+docker rm "$containerId"
+echo "Build complete! The binary is at $outputPath/setlist"
+
