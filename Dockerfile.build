@@ -1,11 +1,11 @@
+dockerfile
+
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-ARG TARGETOS
-ARG TARGETARCH
-ARG OUTPUT_NAME
-# No CGO for simplicity/portability
-ENV CGO_ENABLED=0
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o output/${OUTPUT_NAME} main.go
+RUN apk add --no-cache build-base
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o ./output/setlist_builder .
+FROM scratch AS final
+COPY --from=builder /app/output/setlist_builder /app/setlist_builder
