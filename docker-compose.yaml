@@ -6,8 +6,8 @@ services:
     container_name: setlist_db
     environment:
       POSTGRES_DB: setlist_builder
-      POSTGRES_USER: setlist_user
-      POSTGRES_PASSWORD: setlist_pass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
