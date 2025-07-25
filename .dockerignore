@@ -1,3 +1,5 @@
+dockerignore
+
 output
 .git
 .gitignore
