@@ -45,16 +45,22 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmod
 docker-compose up -d
 ```
 
-## 5. Run the CLI with sample data
+## 5. Build the CLI binary
 ```bash
-./setlist build    # macOS/Linux
-.\setlist build    # Windows
+./build.sh     # macOS/Linux
+.\build.ps1    # Windows
 ```
 
-## 6. Explore available commands
+## 6. Run the CLI with sample data
 ```bash
-./setlist help    # macOS/Linux
-.\setlist help    # Windows
+./output/setlist build    # macOS/Linux
+.\output\setlist build    # Windows
+```
+
+## 7. Explore available commands
+```bash
+./output/setlist help    # macOS/Linux
+.\output\setlist help    # Windows
 ```
 
 ## Usage
