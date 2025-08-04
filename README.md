@@ -55,6 +55,20 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmod
 ```bash
 docker-compose up -d
 ```
+> 🐧 **WSL2 (Windows Subsystem for Linux) Users Only**
+>
+> If you're running this in a WSL terminal and get:
+> `'docker compose' not found`
+>
+> Make sure:
+> 1. Docker Desktop is installed on Windows and running
+> 2. WSL integration is enabled (Docker Desktop > Settings > Resources > WSL Integration)
+> 3. Your WSL distro has the Docker CLI tools installed:
+>
+> ```bash
+> sudo apt update
+> sudo apt install docker-ce-cli
+> ```
 
 ## 5. Build the CLI binary
 * On **macOS/Linux:**
@@ -63,7 +77,7 @@ go build -o setlist
 ```
 * On **Windows (Powershell):**
 ```bash
-Copy-Item .env.sample .env
+go build -o setlist.exe
 ```
 
 ## 6. Run the CLI with sample data
