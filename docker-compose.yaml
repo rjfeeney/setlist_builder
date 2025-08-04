@@ -24,7 +24,7 @@ services:
     build: .
     container_name: setlist_cli
     environment:
-      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/setlist-builder?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/setlist-builder?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
