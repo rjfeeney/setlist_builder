@@ -46,8 +46,8 @@ To use the Spotify features, you’ll need your own developer credentials:
 3. Paste them, as well as the database URL into your `.env` file like so:
 
 ```bash
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
+SPOTIFY_CLIENT_ID="your_client_id"
+SPOTIFY_CLIENT_SECRET="your_client_secret"
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmode=disable"
 ```
 
@@ -57,8 +57,13 @@ docker-compose up -d
 ```
 
 ## 5. Build the CLI binary
+* On **macOS/Linux:**
 ```bash
 go build -o setlist
+```
+* On **Windows (Powershell):**
+```bash
+Copy-Item .env.sample .env
 ```
 
 ## 6. Run the CLI with sample data
