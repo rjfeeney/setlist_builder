@@ -53,7 +53,7 @@ DATABASE_URL="postgres://postgres:postgres@localhost:5432/setlist-builder?sslmod
 
 ## 4.  Start the PostgreSQL sample database
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 > 🐧 **WSL2 (Windows Subsystem for Linux) Users Only**
 >
